@@ -2,17 +2,20 @@ package com.tlvlp.mqtt;
 
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.netty.handler.codec.mqtt.MqttPublishMessage;
+import io.netty.handler.codec.mqtt.MqttQoS;
 import io.quarkus.runtime.Startup;
+import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.mqtt.MqttClient;
 import io.vertx.mqtt.MqttClientOptions;
-import io.vertx.mqtt.messages.MqttPublishMessage;
+import io.vertx.mutiny.core.eventbus.EventBus;
 import lombok.extern.flogger.Flogger;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
-import java.io.IOException;
 import java.util.stream.Collectors;
 
 @Flogger
@@ -20,24 +23,29 @@ import java.util.stream.Collectors;
 @ApplicationScoped
 public class MessageService {
 
+    private Boolean isBrokerConnected;
+
     private final String brokerHost;
     private final Integer brokerPort;
     private final Integer brokerQoS;
 
+    private final EventBus eventBus;
     private final MqttClient mqttClient;
     private final ObjectMapper mapper;
 
     public MessageService(Vertx vertx,
+                          EventBus eventBus,
                           @ConfigProperty(name = "mqtt.broker.host") String brokerHost,
                           @ConfigProperty(name = "mqtt.broker.port") Integer brokerPort,
                           @ConfigProperty(name = "mqtt.broker.username") String brokerUser,
                           @ConfigProperty(name = "mqtt.broker.password") String brokerPassword,
-                          @ConfigProperty(name = "mqtt.broker.qos", defaultValue = "1") Integer brokerQoS
-    ) {
+                          @ConfigProperty(name = "mqtt.broker.qos", defaultValue = "1") Integer brokerQoS) {
+        this.eventBus = eventBus;
         this.mapper = new ObjectMapper();
         this.brokerHost = brokerHost;
         this.brokerPort = brokerPort;
         this.brokerQoS = brokerQoS;
+        this.isBrokerConnected = false;
 
         log.atInfo().log("Creating MQTT client");
         var clientOptions = new MqttClientOptions()
@@ -51,31 +59,48 @@ public class MessageService {
     }
 
     @PostConstruct
-    public void connect() {
+    private void connect() {
         log.atInfo().log("Connecting to the MQTT broker at %s:%d", brokerHost, brokerPort);
         mqttClient.connect(brokerPort, brokerHost.strip(), event -> {
             if(event.failed()) {
                 throw new RuntimeException("Connection failed.");
             }
-            log.atInfo().log("Subscribing to global topics: %s", GlobalTopics.values());
-            var topicQosMap = GlobalTopics.getAll().collect(Collectors.toMap(topic -> topic, na -> brokerQoS));
-            mqttClient
-                    .exceptionHandler(this::errorHandler)
-                    .publishHandler(this::messageHandler)
-                    .subscribe(topicQosMap);
+            subscribeToGlobalTopics();
+            sendGlobalStatusRequest();
         });
     }
 
-    private void errorHandler(Throwable throwable) {
-        log.atSevere().withCause(throwable).log("Mqtt client exception.");
+    private void subscribeToGlobalTopics() {
+        var topicQosMap = GlobalTopics.getIngressTopicStream()
+                .collect(Collectors.toMap(topic -> topic, na -> brokerQoS));
+        log.atInfo().log("Subscribing to global ingress topics: %s", topicQosMap.keySet());
+        mqttClient
+                .exceptionHandler(err -> log.atSevere().withCause(err).log("Mqtt client exception."))
+                .publishHandler(message -> {
+                    eventBus.publish("mqtt_ingress", new Message()
+                            .topic(message.topicName())
+                            .payload(message.payload().toJsonObject()));
+                })
+                .subscribe(topicQosMap);
+        isBrokerConnected = true;
     }
 
-    private void messageHandler(MqttPublishMessage message) {
-        try {
-            var payload = mapper.readTree(message.payload().getBytes());
-            log.atInfo().log("Message received on topic:%s with payload:%s", message.topicName(), payload);
-        } catch (IOException e) {
-            log.atSevere().withCause(e).log("Unable to deserialize MQTT message contents.");
-        }
+    private void sendGlobalStatusRequest() {
+        log.atInfo().log("Sending a global status request for all available units to check in.");
+        sendMessage(GlobalTopics.GLOBAL_STATUS_REQUEST.topic(), Buffer.buffer());
+    }
+
+    public Boolean isBrokerConnected() {
+        return isBrokerConnected;
+    }
+
+    public void sendMessage(String topic, Buffer body) {
+        mqttClient.publish(
+                topic,
+                body,
+                MqttQoS.valueOf(brokerQoS),
+                false,
+                false
+        );
     }
 }
