@@ -24,10 +24,14 @@ import java.util.Optional;
 @Setter
 @Accessors(chain = true, fluent = true)
 @ToString
-@EqualsAndHashCode(callSuper = true)
+@EqualsAndHashCode
 @Entity
 @Table(name = "modules", catalog = "tlvlp_iot")
-public class Module extends PanacheEntity {
+public class Module {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @NotNull
     @Min(1L)
@@ -43,10 +47,5 @@ public class Module extends PanacheEntity {
     @EqualsAndHashCode.Exclude
     @NotNull
     public Double value;
-
-    public static Optional<Module> findByUnitIdAndModuleAndName(Long unitId, String module, String name) {
-        return find("unit_id = ?1 and module = ?2 and name =?3", unitId, module, name)
-                .firstResultOptional();
-    }
 
 }

@@ -29,11 +29,15 @@ import java.util.Objects;
 @ToString
 @Entity
 @Table(name ="unit_logs", catalog = "tlvlp_iot")
-public class UnitLog extends PanacheEntity {
+public class UnitLog {
 
     public enum Type {
         INCOMING_ERROR, INCOMING_INACTIVE, OUTGOING_CONTROL
     }
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @NotNull
     @Min(1L)

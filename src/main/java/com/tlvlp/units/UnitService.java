@@ -11,6 +11,7 @@ import io.vertx.mutiny.core.eventbus.EventBus;
 import lombok.extern.flogger.Flogger;
 
 import javax.enterprise.context.ApplicationScoped;
+import javax.transaction.Transactional;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Collection;
@@ -25,28 +26,37 @@ public class UnitService {
     private final EventBus eventBus;
     private final MessageService messageService;
     private final UnitRepository unitRepository;
+    private final ModuleRepository moduleRepository;
+    private final UnitLogRepository unitLogRepository;
 
-    public UnitService(EventBus eventBus, MessageService messageService, UnitRepository unitRepository) {
+    public UnitService(EventBus eventBus,
+                       MessageService messageService,
+                       UnitRepository unitRepository,
+                       ModuleRepository moduleRepository,
+                       UnitLogRepository unitLogRepository) {
         this.eventBus = eventBus;
         this.messageService = messageService;
         this.unitRepository = unitRepository;
+        this.moduleRepository = moduleRepository;
+        this.unitLogRepository = unitLogRepository;
     }
 
     public void sendControlMessages(Long unitId, Collection<ModuleDTO> moduleControls) {
-        Unit unit = Unit.<Unit>findByIdOptional(unitId)
+        Unit unit = unitRepository.findByIdOptional(unitId)
                 .orElseThrow(() -> new UnitException("Cannot find unit by Id:" + unitId));
         var body = Json.encodeToBuffer(moduleControls);
-        messageService.sendMessage(unit.controlTopic, body);
-        new UnitLog()
-                .unitId(unit.id)
+        messageService.sendMessage(unit.controlTopic(), body);
+        var unitLog = new UnitLog()
+                .unitId(unit.id())
                 .time(ZonedDateTime.now(ZoneOffset.UTC))
                 .type(UnitLog.Type.OUTGOING_CONTROL)
-                .logEntry(Json.encodePrettily(moduleControls))
-                .persistAndFlush();
+                .logEntry(Json.encodePrettily(moduleControls));
+        unitLogRepository.persistAndFlush(unitLog);
     }
 
     @ConsumeEvent("mqtt_ingress")
     void handleIngressMessage(Message message) {
+        log.atFine().log("Message event received: %s", message);
         var body = message.payload();
         var topic = message.topic();
         if (topic.equals(GlobalTopics.GLOBAL_STATUS.topic())) {
@@ -62,60 +72,62 @@ public class UnitService {
         }
     }
 
+    @Transactional
     private void handleErrorMessage(JsonObject body) {
         var timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
-        var unit = getUnitFromBody(body);
-        unit.active = true;
-        unit.lastSeen = timeUtc;
-        if(unit.id == null) {
-            unit.persistAndFlush();
+        var unit = getUnitFromBody(body)
+                .active(true)
+                .lastSeen(timeUtc);
+        if(unit.id() == null) {
+            unitRepository.persistAndFlush(unit);
         }
 
         var error = body.getString("error");
-        new UnitLog()
-                .unitId(unit.id)
+        var unitLog = new UnitLog()
+                .unitId(unit.id())
                 .time(timeUtc)
                 .type(UnitLog.Type.INCOMING_ERROR)
-                .logEntry(error)
-                .persistAndFlush();
+                .logEntry(error);
+        unitLogRepository.persistAndFlush(unitLog);
 
         eventBus.publish("unit_error", Map.of(
                 "unit", unit,
                 "error", error));
     }
 
+    @Transactional
     private void handleInactiveMessage(JsonObject body) {
         var timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
-        var unit = getUnitFromBody(body);
-        unit.active = false;
-        if(unit.lastSeen == null) {
-            unit.lastSeen = ZonedDateTime.now(ZoneOffset.UTC);
+        var unit = getUnitFromBody(body)
+                .active(false);
+        if(unit.lastSeen() == null) {
+            // Keep last seen data if present.
+            unit.lastSeen(ZonedDateTime.now(ZoneOffset.UTC));
         }
-        unit.persistAndFlush();
+        unitRepository.persistAndFlush(unit);
 
-        new UnitLog()
-                .unitId(unit.id)
+        var unitLog = new UnitLog()
+                .unitId(unit.id())
                 .time(timeUtc)
                 .type(UnitLog.Type.INCOMING_INACTIVE)
-                .logEntry(body.getString("error"))
-                .persistAndFlush();
+                .logEntry(body.getString("error"));
+        unitLogRepository.persistAndFlush(unitLog);
 
         eventBus.publish("unit_inactive", unit);
     }
 
+    @Transactional
     private void handleStatusMessage(JsonObject body) {
-        var unit = getUnitFromBody(body);
-        unit.active = true;
-        unit.lastSeen = ZonedDateTime.now(ZoneOffset.UTC);
-        unit.persistAndFlush();
-
-
-        System.out.println(unit);
+        var unit = getUnitFromBody(body)
+                .active(true)
+                .lastSeen(ZonedDateTime.now(ZoneOffset.UTC));
+        unitRepository.persistAndFlush(unit);
 
         getOrCreateModulesFromBody(unit, body)
-                .forEach(module -> module.persist());
+                .forEach(moduleRepository::persist);
     }
 
+    @Transactional
     private Unit getUnitFromBody(JsonObject body) {
         var idObject = body.getJsonObject("id");
         var project = idObject.getString("project");
@@ -126,11 +138,10 @@ public class UnitService {
 
     private Unit getNewUnit(String project, String name) {
         log.atInfo().log("Creating new Unit with: project=%s, name=%s", project, name);
-        var unit = new Unit();
-        unit.project = project;
-        unit.name = name;
-        unit.controlTopic = generateControlTopic(project, name);
-        return unit;
+        return new Unit()
+            .project(project)
+            .name(name)
+            .controlTopic(generateControlTopic(project, name));
     }
 
 
@@ -139,19 +150,21 @@ public class UnitService {
     }
 
 
+    @Transactional
     private Set<Module> getOrCreateModulesFromBody(Unit unit, JsonObject body) {
         return body.getJsonArray("modules")
                 .stream()
                 .map(moduleDtoObj -> Json.decodeValue((Buffer)moduleDtoObj, ModuleDTO.class))
-                .map(moduleDTO -> getOrCreateModule(unit.id, moduleDTO))
+                .map(moduleDTO -> getOrCreateModule(unit.id(), moduleDTO))
                 .collect(Collectors.toSet());
     }
 
+    @Transactional
     private Module getOrCreateModule(Long unitId, ModuleDTO dto) {
         var module = dto.module();
         var name = dto.name();
         var value = dto.value();
-        var moduleDb = Module.findByUnitIdAndModuleAndName(unitId, module, name)
+        var moduleDb = moduleRepository.findByUnitIdAndModuleAndName(unitId, module, name)
                 .orElseGet(() -> {
                     var newModule = new Module()
                                     .unitId(unitId)

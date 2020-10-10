@@ -11,40 +11,50 @@ import lombok.experimental.Accessors;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
 import javax.persistence.Table;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import java.time.ZonedDateTime;
-import java.util.Optional;
 
 /**
  * A Microcontroller Unit (MCU)
  */
+@NoArgsConstructor
+@Getter
+@Setter
+@Accessors(chain = true, fluent = true)
 @ToString
-@EqualsAndHashCode(callSuper = true)
+@EqualsAndHashCode
 @Entity
 @Table(name = "units", catalog = "tlvlp_iot")
-public class Unit extends PanacheEntity {
+public class Unit {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @NotBlank
-    public String project;
+    private String project;
 
     @NotBlank
-    public String name;
+    private String name;
 
     @EqualsAndHashCode.Exclude
     @NotNull
-    public Boolean active;
+    private Boolean active;
 
     @EqualsAndHashCode.Exclude
     @NotNull
     @Column(name = "last_seen", nullable = false)
-    public ZonedDateTime lastSeen;
+    private ZonedDateTime lastSeen;
 
     @EqualsAndHashCode.Exclude
     @NotBlank
     @Column(name = "control_topic", nullable = false)
-    public String controlTopic;
+    private String controlTopic;
 
 
 }

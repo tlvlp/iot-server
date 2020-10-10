@@ -59,7 +59,7 @@ public class MessageService {
     }
 
     @PostConstruct
-    private void connect() {
+    void connect() {
         log.atInfo().log("Connecting to the MQTT broker at %s:%d", brokerHost, brokerPort);
         mqttClient.connect(brokerPort, brokerHost.strip(), event -> {
             if(event.failed()) {
@@ -74,24 +74,28 @@ public class MessageService {
         var topicQosMap = GlobalTopics.getIngressTopicStream()
                 .collect(Collectors.toMap(topic -> topic, na -> brokerQoS));
         log.atInfo().log("Subscribing to global ingress topics: %s", topicQosMap.keySet());
+
         mqttClient
                 .exceptionHandler(err -> log.atSevere().withCause(err).log("Mqtt client exception."))
-                .publishHandler(message -> {
-                    eventBus.publish("mqtt_ingress", new Message()
-                            .topic(message.topicName())
-                            .payload(message.payload().toJsonObject()));
+                .publishHandler(mqttMessage -> {
+                    var message = new Message()
+                            .topic(mqttMessage.topicName())
+                            .payload(mqttMessage.payload().toJsonObject());
+                    log.atFine().log("Message received: %s", message);
+                    eventBus.publish("mqtt_ingress",message );
                 })
                 .subscribe(topicQosMap);
-        isBrokerConnected = true;
-    }
 
-    private void sendGlobalStatusRequest() {
-        log.atInfo().log("Sending a global status request for all available units to check in.");
-        sendMessage(GlobalTopics.GLOBAL_STATUS_REQUEST.topic(), Buffer.buffer());
+        isBrokerConnected = true;
     }
 
     public Boolean isBrokerConnected() {
         return isBrokerConnected;
+    }
+
+    public void sendGlobalStatusRequest() {
+        log.atInfo().log("Sending a global status request for all available units to check in.");
+        sendMessage(GlobalTopics.GLOBAL_STATUS_REQUEST.topic(), Buffer.buffer());
     }
 
     public void sendMessage(String topic, Buffer body) {
