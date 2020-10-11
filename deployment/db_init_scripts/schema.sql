@@ -13,7 +13,7 @@ CREATE TABLE `units`
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_0900_ai_ci;
+  COLLATE = utf8mb4_unicode_520_ci;
 
 CREATE TABLE `modules`
 (
@@ -25,7 +25,7 @@ CREATE TABLE `modules`
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_0900_ai_ci;
+  COLLATE = utf8mb4_unicode_ci;
 
 CREATE TABLE `unit_logs`
 (
@@ -37,7 +37,7 @@ CREATE TABLE `unit_logs`
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_0900_ai_ci;
+  COLLATE = utf8mb4_unicode_520_ci;
 
 # CREATE TABLE `users`
 # (
@@ -51,7 +51,7 @@ CREATE TABLE `unit_logs`
 #     PRIMARY KEY (`id`)
 # ) ENGINE = InnoDB
 #   DEFAULT CHARSET = utf8mb4
-#   COLLATE = utf8mb4_0900_ai_ci;
+#   COLLATE = utf8mb4_unicode_520_ci;
 
 
 # CREATE TABLE `scheduled_events`
@@ -67,4 +67,4 @@ CREATE TABLE `unit_logs`
 #     PRIMARY KEY (`id`)
 # ) ENGINE = InnoDB
 #   DEFAULT CHARSET = utf8mb4
-#   COLLATE = utf8mb4_0900_ai_ci;
+#   COLLATE = utf8mb4_unicode_520_ci;

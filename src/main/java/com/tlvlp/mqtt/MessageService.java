@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 public class MessageService {
 
     private Boolean isBrokerConnected;
+    private Boolean isServiceDisabled;
 
     private final String brokerHost;
     private final Integer brokerPort;
@@ -35,6 +36,7 @@ public class MessageService {
 
     public MessageService(Vertx vertx,
                           EventBus eventBus,
+                          @ConfigProperty(name = "mqtt.message.service.disabled", defaultValue = "false") Boolean isServiceDisabled,
                           @ConfigProperty(name = "mqtt.broker.host") String brokerHost,
                           @ConfigProperty(name = "mqtt.broker.port") Integer brokerPort,
                           @ConfigProperty(name = "mqtt.broker.username") String brokerUser,
@@ -46,6 +48,7 @@ public class MessageService {
         this.brokerPort = brokerPort;
         this.brokerQoS = brokerQoS;
         this.isBrokerConnected = false;
+        this.isServiceDisabled = isServiceDisabled;
 
         log.atInfo().log("Creating MQTT client");
         var clientOptions = new MqttClientOptions()
@@ -60,6 +63,10 @@ public class MessageService {
 
     @PostConstruct
     void connect() {
+        if(isServiceDisabled) {
+            log.atInfo().log("Message service is disabled. MQTT Broker connection is skipped.");
+            return;
+        }
         log.atInfo().log("Connecting to the MQTT broker at %s:%d", brokerHost, brokerPort);
         mqttClient.connect(brokerPort, brokerHost.strip(), event -> {
             if(event.failed()) {
@@ -82,7 +89,7 @@ public class MessageService {
                             .topic(mqttMessage.topicName())
                             .payload(mqttMessage.payload().toJsonObject());
                     log.atFine().log("Message received: %s", message);
-                    eventBus.publish("mqtt_ingress",message );
+                    eventBus.publish("mqtt_ingress",message);
                 })
                 .subscribe(topicQosMap);
 
@@ -99,6 +106,10 @@ public class MessageService {
     }
 
     public void sendMessage(String topic, Buffer body) {
+        if(isServiceDisabled) {
+            log.atInfo().log("Message service is disabled. Not sending message. Topic:{} Body:{}", topic, body.toJsonObject());
+            return;
+        }
         mqttClient.publish(
                 topic,
                 body,

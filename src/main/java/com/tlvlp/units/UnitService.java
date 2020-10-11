@@ -3,6 +3,7 @@ package com.tlvlp.units;
 import com.tlvlp.mqtt.GlobalTopics;
 import com.tlvlp.mqtt.Message;
 import com.tlvlp.mqtt.MessageService;
+import io.quarkus.runtime.Startup;
 import io.quarkus.vertx.ConsumeEvent;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.Json;
@@ -17,9 +18,12 @@ import java.time.ZonedDateTime;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Level;
 import java.util.stream.Collectors;
 
+@Startup
 @Flogger
+@Transactional
 @ApplicationScoped
 public class UnitService {
 
@@ -55,8 +59,8 @@ public class UnitService {
     }
 
     @ConsumeEvent("mqtt_ingress")
-    void handleIngressMessage(Message message) {
-        log.atFine().log("Message event received: %s", message);
+    public void handleIngressMessage(Message message) {
+        log.at(Level.FINER).log("Message event received: %s", message);
         var body = message.payload();
         var topic = message.topic();
         if (topic.equals(GlobalTopics.GLOBAL_STATUS.topic())) {
@@ -72,7 +76,6 @@ public class UnitService {
         }
     }
 
-    @Transactional
     private void handleErrorMessage(JsonObject body) {
         var timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
         var unit = getUnitFromBody(body)
@@ -95,7 +98,6 @@ public class UnitService {
                 "error", error));
     }
 
-    @Transactional
     private void handleInactiveMessage(JsonObject body) {
         var timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
         var unit = getUnitFromBody(body)
@@ -116,7 +118,6 @@ public class UnitService {
         eventBus.publish("unit_inactive", unit);
     }
 
-    @Transactional
     private void handleStatusMessage(JsonObject body) {
         var unit = getUnitFromBody(body)
                 .active(true)
@@ -127,7 +128,6 @@ public class UnitService {
                 .forEach(moduleRepository::persist);
     }
 
-    @Transactional
     private Unit getUnitFromBody(JsonObject body) {
         var idObject = body.getJsonObject("id");
         var project = idObject.getString("project");
@@ -150,7 +150,6 @@ public class UnitService {
     }
 
 
-    @Transactional
     private Set<Module> getOrCreateModulesFromBody(Unit unit, JsonObject body) {
         return body.getJsonArray("modules")
                 .stream()
@@ -159,7 +158,6 @@ public class UnitService {
                 .collect(Collectors.toSet());
     }
 
-    @Transactional
     private Module getOrCreateModule(Long unitId, ModuleDTO dto) {
         var module = dto.module();
         var name = dto.name();
