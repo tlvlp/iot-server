@@ -1,5 +1,4 @@
-package com.tlvlp.units;
-
+package com.tlvlp.units.persistence;
 
 import io.quarkus.hibernate.orm.panache.PanacheEntity;
 import lombok.EqualsAndHashCode;
@@ -11,7 +10,6 @@ import lombok.experimental.Accessors;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
@@ -19,21 +17,17 @@ import javax.persistence.Table;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
-import javax.validation.constraints.PastOrPresent;
-import java.time.ZonedDateTime;
-import java.util.Objects;
+import java.util.Optional;
+
 @NoArgsConstructor
 @Getter
 @Setter
 @Accessors(chain = true, fluent = true)
 @ToString
+@EqualsAndHashCode
 @Entity
-@Table(name ="unit_logs", catalog = "tlvlp_iot")
-public class UnitLog {
-
-    public enum Type {
-        INCOMING_ERROR, INCOMING_INACTIVE, OUTGOING_CONTROL
-    }
+@Table(name = "modules", catalog = "tlvlp_iot")
+public class Module {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -44,15 +38,18 @@ public class UnitLog {
     @Column(name = "unit_id", nullable = false)
     public Long unitId;
 
-    @NotNull
-    public ZonedDateTime time;
-
-    @NotNull
-    @Enumerated
-    public Type type;
+    @NotBlank
+    public String module;
 
     @NotBlank
-    @Column(name = "log_entry", nullable = false)
-    public String logEntry;
+    public String name;
+
+    @EqualsAndHashCode.Exclude
+    @NotNull
+    public Double value;
+
+    @EqualsAndHashCode.Exclude
+    @NotNull
+    private Boolean active;
 
 }

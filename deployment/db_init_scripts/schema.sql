@@ -22,6 +22,7 @@ CREATE TABLE `modules`
     `module`    varchar(255) DEFAULT NULL,
     `name`    varchar(255) DEFAULT NULL,
     `value` double     NOT NULL,
+    `active`        bit(1)       NOT NULL,
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4

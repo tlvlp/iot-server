@@ -3,9 +3,16 @@ package com.tlvlp.units;
 import com.tlvlp.mqtt.GlobalTopics;
 import com.tlvlp.mqtt.Message;
 import com.tlvlp.mqtt.MessageService;
+import com.tlvlp.units.persistence.Module;
+import com.tlvlp.units.persistence.ModuleDTO;
+import com.tlvlp.units.persistence.ModuleRepository;
+import com.tlvlp.units.persistence.Unit;
+import com.tlvlp.units.persistence.UnitLog;
+import com.tlvlp.units.persistence.UnitLogRepository;
+import com.tlvlp.units.persistence.UnitRepository;
 import io.quarkus.runtime.Startup;
 import io.quarkus.vertx.ConsumeEvent;
-import io.vertx.core.buffer.Buffer;
+import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.core.eventbus.EventBus;
@@ -23,7 +30,6 @@ import java.util.stream.Collectors;
 
 @Startup
 @Flogger
-@Transactional
 @ApplicationScoped
 public class UnitService {
 
@@ -45,6 +51,7 @@ public class UnitService {
         this.unitLogRepository = unitLogRepository;
     }
 
+    @Transactional
     public void sendControlMessages(Long unitId, Collection<ModuleDTO> moduleControls) {
         Unit unit = unitRepository.findByIdOptional(unitId)
                 .orElseThrow(() -> new UnitException("Cannot find unit by Id:" + unitId));
@@ -55,34 +62,38 @@ public class UnitService {
                 .time(ZonedDateTime.now(ZoneOffset.UTC))
                 .type(UnitLog.Type.OUTGOING_CONTROL)
                 .logEntry(Json.encodePrettily(moduleControls));
-        unitLogRepository.persistAndFlush(unitLog);
+        unitLogRepository.save(unitLog);
     }
 
     @ConsumeEvent("mqtt_ingress")
-    public void handleIngressMessage(Message message) {
-        log.at(Level.FINER).log("Message event received: %s", message);
-        var body = message.payload();
-        var topic = message.topic();
-        if (topic.equals(GlobalTopics.GLOBAL_STATUS.topic())) {
-            handleStatusMessage(body);
-        }
-        else if (topic.equals(GlobalTopics.GLOBAL_INACTIVE.topic())) {
-            handleInactiveMessage(body);
-        }
-        else if (topic.equals(GlobalTopics.GLOBAL_ERROR.topic())) {
-            handleErrorMessage(body);
-        } else {
-            log.atSevere().log("Unrecognized topic name: %s", topic);
-        }
+    @Transactional
+    public Uni<Void> handleIngressMessage(Message message) {
+        return Uni.createFrom().item(() -> {
+            log.at(Level.FINE).log("Message event received: %s", message);
+            var body = message.payload();
+            var topic = message.topic();
+
+            if (topic.equals(GlobalTopics.GLOBAL_STATUS.topic())) {
+                handleStatusMessage(body);
+            } else if (topic.equals(GlobalTopics.GLOBAL_INACTIVE.topic())) {
+                handleInactiveMessage(body);
+            } else if (topic.equals(GlobalTopics.GLOBAL_ERROR.topic())) {
+                handleErrorMessage(body);
+            } else {
+                log.atSevere().log("Unrecognized topic name: %s", topic);
+            }
+            return null;
+        });
     }
 
     private void handleErrorMessage(JsonObject body) {
         var timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
-        var unit = getUnitFromBody(body)
+        var unit = getOrCreateUnitFromBody(body)
                 .active(true)
                 .lastSeen(timeUtc);
         if(unit.id() == null) {
-            unitRepository.persistAndFlush(unit);
+            unitRepository.save(unit);
+            unitRepository.flush();
         }
 
         var error = body.getString("error");
@@ -91,7 +102,7 @@ public class UnitService {
                 .time(timeUtc)
                 .type(UnitLog.Type.INCOMING_ERROR)
                 .logEntry(error);
-        unitLogRepository.persistAndFlush(unitLog);
+        unitLogRepository.save(unitLog);
 
         eventBus.publish("unit_error", Map.of(
                 "unit", unit,
@@ -100,44 +111,65 @@ public class UnitService {
 
     private void handleInactiveMessage(JsonObject body) {
         var timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
-        var unit = getUnitFromBody(body)
+        var unit = getOrCreateUnitFromBody(body)
                 .active(false);
         if(unit.lastSeen() == null) {
             // Keep last seen data if present.
             unit.lastSeen(ZonedDateTime.now(ZoneOffset.UTC));
         }
-        unitRepository.persistAndFlush(unit);
+        unitRepository.save(unit);
+        unitRepository.flush();
 
         var unitLog = new UnitLog()
                 .unitId(unit.id())
                 .time(timeUtc)
                 .type(UnitLog.Type.INCOMING_INACTIVE)
                 .logEntry(body.getString("error"));
-        unitLogRepository.persistAndFlush(unitLog);
+        unitLogRepository.save(unitLog);
 
         eventBus.publish("unit_inactive", unit);
     }
 
     private void handleStatusMessage(JsonObject body) {
-        var unit = getUnitFromBody(body)
+        var unit = getOrCreateUnitFromBody(body)
                 .active(true)
                 .lastSeen(ZonedDateTime.now(ZoneOffset.UTC));
-        unitRepository.persistAndFlush(unit);
+        var savedUnit = unitRepository.save(unit);
+        unitRepository.flush();
 
-        getOrCreateModulesFromBody(unit, body)
-                .forEach(moduleRepository::persist);
+        if (unit.id() == null) {
+            log.atInfo().log("Added a new Unit: %s", savedUnit);
+        }
+
+        var newModules = getOrCreateModulesFromBody(savedUnit, body);
+
+        newModules.forEach(module -> {
+            module.active(true);
+            var savedModule = moduleRepository.save(module);
+            if (module.id() == null) {
+                log.atInfo().log("Added a new Module: %s", savedModule);
+            }
+        });
+
+        moduleRepository.getAllActiveModulesByUnitId(unit.id()).stream()
+                .filter(module -> !newModules.contains(module))
+                .forEach(module -> {
+                    module.active(false);
+                    moduleRepository.save(module);
+                    log.atInfo().log("A previously active Module is now missing from the Unit status. " +
+                            "Marking module as inactive: %s", module);
+                });
     }
 
-    private Unit getUnitFromBody(JsonObject body) {
-        var idObject = body.getJsonObject("id");
-        var project = idObject.getString("project");
-        var name = idObject.getString("unitName");
+    private Unit getOrCreateUnitFromBody(JsonObject body) {
+        var idJson = body.getJsonObject("id");
+        var project = idJson.getString("project");
+        var name = idJson.getString("unitName");
         var unitOpt = unitRepository.findByProjectAndName(project, name);
-        return unitOpt.orElse(getNewUnit(project, name));
+        return unitOpt.orElseGet(() -> getNewUnit(project, name));
     }
 
     private Unit getNewUnit(String project, String name) {
-        log.atInfo().log("Creating new Unit with: project=%s, name=%s", project, name);
         return new Unit()
             .project(project)
             .name(name)
@@ -149,11 +181,10 @@ public class UnitService {
         return String.format("/units/%s-%s/control", project, name);
     }
 
-
     private Set<Module> getOrCreateModulesFromBody(Unit unit, JsonObject body) {
         return body.getJsonArray("modules")
                 .stream()
-                .map(moduleDtoObj -> Json.decodeValue((Buffer)moduleDtoObj, ModuleDTO.class))
+                .map(moduleDtoObj -> Json.decodeValue(String.valueOf(moduleDtoObj), ModuleDTO.class))
                 .map(moduleDTO -> getOrCreateModule(unit.id(), moduleDTO))
                 .collect(Collectors.toSet());
     }
@@ -163,22 +194,18 @@ public class UnitService {
         var name = dto.name();
         var value = dto.value();
         var moduleDb = moduleRepository.findByUnitIdAndModuleAndName(unitId, module, name)
-                .orElseGet(() -> {
-                    var newModule = new Module()
-                                    .unitId(unitId)
-                                    .module(module)
-                                    .name(name)
-                                    .value(value);
-                    log.atInfo().log("Module has been created: %s", newModule);
-                    return newModule;
-                });
+                .orElseGet(() ->  new Module()
+                        .unitId(unitId)
+                        .module(module)
+                        .name(name)
+                        .value(value)
+                        .active(true));
         if(!moduleDb.value().equals(value)) {
             moduleDb.value(value);
-            log.atFine().log("Module value has been updated: %s", moduleDb);
+            log.atInfo().log("Module value has been updated: %s", moduleDb);
         }
         return moduleDb;
 
     }
-
 
 }

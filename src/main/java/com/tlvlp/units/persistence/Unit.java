@@ -1,4 +1,4 @@
-package com.tlvlp.units;
+package com.tlvlp.units.persistence;
 
 
 import io.quarkus.hibernate.orm.panache.PanacheEntity;

@@ -1,11 +1,8 @@
 package com.tlvlp.mqtt;
 
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.netty.handler.codec.mqtt.MqttPublishMessage;
 import io.netty.handler.codec.mqtt.MqttQoS;
 import io.quarkus.runtime.Startup;
-import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.mqtt.MqttClient;
@@ -32,7 +29,6 @@ public class MessageService {
 
     private final EventBus eventBus;
     private final MqttClient mqttClient;
-    private final ObjectMapper mapper;
 
     public MessageService(Vertx vertx,
                           EventBus eventBus,
@@ -43,7 +39,6 @@ public class MessageService {
                           @ConfigProperty(name = "mqtt.broker.password") String brokerPassword,
                           @ConfigProperty(name = "mqtt.broker.qos", defaultValue = "1") Integer brokerQoS) {
         this.eventBus = eventBus;
-        this.mapper = new ObjectMapper();
         this.brokerHost = brokerHost;
         this.brokerPort = brokerPort;
         this.brokerQoS = brokerQoS;
@@ -89,7 +84,7 @@ public class MessageService {
                             .topic(mqttMessage.topicName())
                             .payload(mqttMessage.payload().toJsonObject());
                     log.atFine().log("Message received: %s", message);
-                    eventBus.publish("mqtt_ingress",message);
+                    eventBus.publish("mqtt_ingress", message);
                 })
                 .subscribe(topicQosMap);
 
@@ -107,7 +102,7 @@ public class MessageService {
 
     public void sendMessage(String topic, Buffer body) {
         if(isServiceDisabled) {
-            log.atInfo().log("Message service is disabled. Not sending message. Topic:{} Body:{}", topic, body.toJsonObject());
+            log.atInfo().log("Message service is disabled. Not sending message. Topic:%s Body:%s", topic, body.toJsonObject());
             return;
         }
         mqttClient.publish(
