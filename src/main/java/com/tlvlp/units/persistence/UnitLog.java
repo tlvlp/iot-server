@@ -32,7 +32,7 @@ import java.util.Objects;
 public class UnitLog {
 
     public enum Type {
-        INCOMING_ERROR, INCOMING_INACTIVE, OUTGOING_CONTROL
+        INCOMING_ERROR, INCOMING_INACTIVE, OUTGOING_CONTROL, STATUS_CHANGE
     }
 
     @Id

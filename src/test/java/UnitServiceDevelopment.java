@@ -65,7 +65,7 @@ public class UnitServiceDevelopment {
         // when
         IntStream.range(0, 3).forEach(i ->
                 unitService.handleIngressMessage(message)
-//                eventBus.publish("mqtt_ingress", message)
+//                eventBus.sendAndForget("mqtt_ingress", message)
         );
 
         // then

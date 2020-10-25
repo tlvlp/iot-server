@@ -18,4 +18,10 @@ public interface PanacheRepositoryWithSave<T> extends PanacheRepository<T> {
         }
     }
 
+    default T saveAndFlush(T entity) {
+        var saved = save(entity);
+        flush();
+        return saved;
+    }
+
 }

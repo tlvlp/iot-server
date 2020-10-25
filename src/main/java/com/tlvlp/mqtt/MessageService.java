@@ -1,8 +1,10 @@
 package com.tlvlp.mqtt;
 
 
+import com.tlvlp.units.UnitService;
 import io.netty.handler.codec.mqtt.MqttQoS;
 import io.quarkus.runtime.Startup;
+import io.smallrye.mutiny.Uni;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.mqtt.MqttClient;
@@ -37,7 +39,8 @@ public class MessageService {
                           @ConfigProperty(name = "mqtt.broker.port") Integer brokerPort,
                           @ConfigProperty(name = "mqtt.broker.username") String brokerUser,
                           @ConfigProperty(name = "mqtt.broker.password") String brokerPassword,
-                          @ConfigProperty(name = "mqtt.broker.qos", defaultValue = "1") Integer brokerQoS) {
+                          @ConfigProperty(name = "mqtt.broker.qos", defaultValue = "1") Integer brokerQoS
+    ) {
         this.eventBus = eventBus;
         this.brokerHost = brokerHost;
         this.brokerPort = brokerPort;
@@ -83,8 +86,8 @@ public class MessageService {
                     var message = new Message()
                             .topic(mqttMessage.topicName())
                             .payload(mqttMessage.payload().toJsonObject());
-                    log.atFine().log("Message received: %s", message);
-                    eventBus.publish("mqtt_ingress", message);
+                    log.atInfo().log("Message received: %s", message);
+                    eventBus.sendAndForget("mqtt_ingress", message);
                 })
                 .subscribe(topicQosMap);
 
