@@ -11,6 +11,7 @@ import lombok.experimental.Accessors;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
@@ -48,7 +49,7 @@ public class UnitLog {
     public ZonedDateTime time;
 
     @NotNull
-    @Enumerated
+    @Enumerated(EnumType.STRING)
     public Type type;
 
     @NotBlank

@@ -34,7 +34,7 @@ CREATE TABLE `unit_logs`
     `unit_id`   bigint(20)   NOT NULL,
     `log_entry` varchar(255) NOT NULL,
     `time`      datetime(6)  NOT NULL,
-    `type`      int(11)      NOT NULL,
+    `type`      varchar(50)  NOT NULL,
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
