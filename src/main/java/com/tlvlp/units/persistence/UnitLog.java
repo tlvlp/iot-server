@@ -1,8 +1,6 @@
 package com.tlvlp.units.persistence;
 
 
-import io.quarkus.hibernate.orm.panache.PanacheEntity;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -20,9 +18,11 @@ import javax.persistence.Table;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
-import javax.validation.constraints.PastOrPresent;
 import java.time.ZonedDateTime;
-import java.util.Objects;
+
+/**
+ * A log entry related to a Microcontroller Unit (MCU).
+ */
 @NoArgsConstructor
 @Getter
 @Setter

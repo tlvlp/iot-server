@@ -12,6 +12,7 @@ import com.tlvlp.units.persistence.UnitLogRepository;
 import com.tlvlp.units.persistence.UnitRepository;
 import io.quarkus.runtime.Startup;
 import io.quarkus.vertx.ConsumeEvent;
+import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
@@ -50,17 +51,45 @@ public class UnitService {
         this.unitLogRepository = unitLogRepository;
     }
 
-    public void sendControlMessages(Long unitId, Collection<ModuleDTO> moduleControls) {
-        Unit unit = unitRepository.findByIdOptional(unitId)
-                .orElseThrow(() -> new UnitException("Cannot find unit by Id:" + unitId));
-        var body = Json.encodeToBuffer(moduleControls);
-        messageService.sendMessage(unit.controlTopic(), body);
-        var unitLog = new UnitLog()
-                .unitId(unit.id())
-                .time(ZonedDateTime.now(ZoneOffset.UTC))
-                .type(UnitLog.Type.OUTGOING_CONTROL)
-                .logEntry(Json.encodePrettily(moduleControls));
-        unitLogRepository.save(unitLog);
+    public Multi<Unit> getAllUnits() {
+        return Multi.createFrom().items(unitRepository.streamAll())
+                .onFailure().invoke(e -> log.atSevere().log("Unable to get all units: %s", e.getMessage()));
+    }
+
+    public Uni<Unit> getUnitById(Long unitId) {
+        return Uni.createFrom().item(unitRepository.findById(unitId))
+                .onFailure().invoke(e -> log.atSevere().log("Unable to get unit by id(%s): %s", unitId, e.getMessage()));
+    }
+
+    public Multi<UnitLog> getUnitLogsByUnitId(Long unitId) {
+        return Multi.createFrom().items(unitLogRepository.findAllByUnitId(unitId).stream())
+                .onFailure().invoke(e -> log.atSevere().log("Unable to get unit logs by unit id(%s): %s", unitId, e.getMessage()));
+    }
+
+    public Multi<Module> getModulesByUnitId(Long unitId) {
+        return Multi.createFrom().items(moduleRepository.findAllByUnitId(unitId).stream())
+                .onFailure().invoke(e -> log.atSevere().log("Unable to get modules by unit id(%s): %s", unitId, e.getMessage()));
+    }
+
+    public Uni<Void> sendControlMessages(Long unitId, Collection<ModuleDTO> moduleControls) {
+        try {
+            Unit unit = unitRepository.findByIdOptional(unitId)
+                    .orElseThrow(() -> new UnitException("Cannot find unit by Id:" + unitId));
+            var body = Json.encodeToBuffer(moduleControls);
+            messageService.sendMessage(unit.controlTopic(), body);
+
+            var unitLog = new UnitLog()
+                    .unitId(unit.id())
+                    .time(ZonedDateTime.now(ZoneOffset.UTC))
+                    .type(UnitLog.Type.OUTGOING_CONTROL)
+                    .logEntry(Json.encodePrettily(moduleControls));
+            unitLogRepository.save(unitLog);
+
+            return Uni.createFrom().voidItem();
+        } catch (Exception e) {
+            return Uni.createFrom().failure(e);
+        }
+
     }
 
     @ConsumeEvent(value = "mqtt_ingress", blocking = true)
@@ -113,7 +142,7 @@ public class UnitService {
         var timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
         var unit = getOrCreateUnitFromBody(body)
                 .active(false);
-        if(unit.lastSeen() == null) {
+        if (unit.lastSeen() == null) {
             // Keep last seen data if present.
             unit.lastSeen(ZonedDateTime.now(ZoneOffset.UTC));
         }
@@ -212,7 +241,7 @@ public class UnitService {
                 .orElseGet(() -> createAndPersistNewModule(unitId, moduleType, name, value));
 
         // Reactivation
-        if(!moduleDb.active().equals(true)) {
+        if (!moduleDb.active().equals(true)) {
             moduleDb.active(true);
             var msg = String.format("Module was reactivated: %s", moduleDb);
             var unitLog = new UnitLog()
@@ -225,7 +254,7 @@ public class UnitService {
         }
 
         // Value change
-        if(!moduleDb.value().equals(value)) {
+        if (!moduleDb.value().equals(value)) {
             moduleDb.value(value);
             log.atFine().log("Module value was updated: %s", moduleDb);
         }
