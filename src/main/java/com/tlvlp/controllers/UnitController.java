@@ -1,10 +1,10 @@
 package com.tlvlp.controllers;
 
 import com.tlvlp.units.UnitService;
-import com.tlvlp.units.persistence.Module;
-import com.tlvlp.units.persistence.ModuleDTO;
-import com.tlvlp.units.persistence.Unit;
-import com.tlvlp.units.persistence.UnitLog;
+import com.tlvlp.units.Module;
+import com.tlvlp.units.ModuleDTO;
+import com.tlvlp.units.Unit;
+import com.tlvlp.units.UnitLog;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import lombok.extern.flogger.Flogger;

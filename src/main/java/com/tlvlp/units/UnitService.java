@@ -3,13 +3,9 @@ package com.tlvlp.units;
 import com.tlvlp.mqtt.GlobalTopics;
 import com.tlvlp.mqtt.Message;
 import com.tlvlp.mqtt.MessageService;
-import com.tlvlp.units.persistence.Module;
-import com.tlvlp.units.persistence.ModuleDTO;
-import com.tlvlp.units.persistence.ModuleRepository;
-import com.tlvlp.units.persistence.Unit;
-import com.tlvlp.units.persistence.UnitLog;
-import com.tlvlp.units.persistence.UnitLogRepository;
-import com.tlvlp.units.persistence.UnitRepository;
+import com.tlvlp.persistence.ModuleRepository;
+import com.tlvlp.persistence.UnitLogRepository;
+import com.tlvlp.persistence.UnitRepository;
 import io.quarkus.runtime.Startup;
 import io.quarkus.vertx.ConsumeEvent;
 import io.smallrye.mutiny.Multi;
@@ -80,7 +76,7 @@ public class UnitService {
 
             var unitLog = new UnitLog()
                     .unitId(unit.id())
-                    .time(ZonedDateTime.now(ZoneOffset.UTC))
+                    .timeUtc(ZonedDateTime.now(ZoneOffset.UTC))
                     .type(UnitLog.Type.OUTGOING_CONTROL)
                     .logEntry(Json.encodePrettily(moduleControls));
             unitLogRepository.save(unitLog);
@@ -119,7 +115,7 @@ public class UnitService {
         var timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
         var unit = getOrCreateUnitFromBody(body)
                 .active(true)
-                .lastSeen(timeUtc);
+                .lastSeenUtc(timeUtc);
 
         var error = Optional.ofNullable(body.getString("error"))
                 .orElseGet(() -> {
@@ -128,7 +124,7 @@ public class UnitService {
                 });
         var unitLog = new UnitLog()
                 .unitId(unit.id())
-                .time(timeUtc)
+                .timeUtc(timeUtc)
                 .type(UnitLog.Type.INCOMING_ERROR)
                 .logEntry(error);
         unitLogRepository.save(unitLog);
@@ -142,15 +138,15 @@ public class UnitService {
         var timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
         var unit = getOrCreateUnitFromBody(body)
                 .active(false);
-        if (unit.lastSeen() == null) {
+        if (unit.lastSeenUtc() == null) {
             // Keep last seen data if present.
-            unit.lastSeen(ZonedDateTime.now(ZoneOffset.UTC));
+            unit.lastSeenUtc(ZonedDateTime.now(ZoneOffset.UTC));
         }
         var unitSaved = unitRepository.saveAndFlush(unit);
 
         var unitLog = new UnitLog()
                 .unitId(unitSaved.id())
-                .time(timeUtc)
+                .timeUtc(timeUtc)
                 .type(UnitLog.Type.INCOMING_INACTIVE)
                 .logEntry("Unit is inactive.");
         unitLogRepository.save(unitLog);
@@ -162,7 +158,7 @@ public class UnitService {
         var timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
         var unit = getOrCreateUnitFromBody(body)
                 .active(true)
-                .lastSeen(timeUtc);
+                .lastSeenUtc(timeUtc);
         var savedUnit = unitRepository.saveAndFlush(unit);
         updateOrCreateModulesFromBody(savedUnit, body);
     }
@@ -184,13 +180,13 @@ public class UnitService {
                 .project(project)
                 .name(name)
                 .active(true)
-                .lastSeen(timeUtc)
+                .lastSeenUtc(timeUtc)
                 .controlTopic(generateControlTopic(project, name));
         var unitSaved = unitRepository.saveAndFlush(unit);
 
         var unitLog = new UnitLog()
                 .unitId(unitSaved.id())
-                .time(timeUtc)
+                .timeUtc(timeUtc)
                 .type(UnitLog.Type.STATUS_CHANGE)
                 .logEntry("New Unit was registered.");
         unitLogRepository.save(unitLog);
@@ -225,7 +221,7 @@ public class UnitService {
 
                     var unitLog = new UnitLog()
                             .unitId(unit.id())
-                            .time(ZonedDateTime.now(ZoneOffset.UTC))
+                            .timeUtc(ZonedDateTime.now(ZoneOffset.UTC))
                             .type(UnitLog.Type.STATUS_CHANGE)
                             .logEntry(updateMessage);
                     unitLogRepository.save(unitLog);
@@ -246,7 +242,7 @@ public class UnitService {
             var msg = String.format("Module was reactivated: %s", moduleDb);
             var unitLog = new UnitLog()
                     .unitId(unitId)
-                    .time(ZonedDateTime.now(ZoneOffset.UTC))
+                    .timeUtc(ZonedDateTime.now(ZoneOffset.UTC))
                     .type(UnitLog.Type.STATUS_CHANGE)
                     .logEntry(msg);
             unitLogRepository.save(unitLog);
@@ -275,7 +271,7 @@ public class UnitService {
 
         var unitLog = new UnitLog()
                 .unitId(unitId)
-                .time(ZonedDateTime.now(ZoneOffset.UTC))
+                .timeUtc(ZonedDateTime.now(ZoneOffset.UTC))
                 .type(UnitLog.Type.STATUS_CHANGE)
                 .logEntry(newModuleMessage);
         unitLogRepository.save(unitLog);

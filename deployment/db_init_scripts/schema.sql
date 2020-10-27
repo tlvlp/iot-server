@@ -8,7 +8,7 @@ CREATE TABLE `units`
     `project`       varchar(255) NOT NULL,
     `name`          varchar(255) NOT NULL,
     `active`        bit(1)       NOT NULL,
-    `last_seen`     datetime(6)  NOT NULL,
+    `last_seen_utc` datetime(6)  NOT NULL,
     `control_topic` varchar(255) NOT NULL,
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB
@@ -19,10 +19,10 @@ CREATE TABLE `modules`
 (
     `id`      bigint(20) NOT NULL AUTO_INCREMENT,
     `unit_id` bigint(20)   DEFAULT NULL,
-    `module`    varchar(255) DEFAULT NULL,
+    `module`  varchar(255) DEFAULT NULL,
     `name`    varchar(255) DEFAULT NULL,
-    `value` double     NOT NULL,
-    `active`        bit(1)       NOT NULL,
+    `value`   double     NOT NULL,
+    `active`  bit(1)       NOT NULL,
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
@@ -33,7 +33,7 @@ CREATE TABLE `unit_logs`
     `id`        bigint(20)   NOT NULL AUTO_INCREMENT,
     `unit_id`   bigint(20)   NOT NULL,
     `log_entry` varchar(255) NOT NULL,
-    `time`      datetime(6)  NOT NULL,
+    `time_utc`  datetime(6)  NOT NULL,
     `type`      varchar(50)  NOT NULL,
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB

@@ -1,6 +1,6 @@
-package com.tlvlp.units.persistence;
+package com.tlvlp.units;
 
-import lombok.EqualsAndHashCode;
+
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -9,6 +9,8 @@ import lombok.experimental.Accessors;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
@@ -16,20 +18,23 @@ import javax.persistence.Table;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
+import java.time.ZonedDateTime;
 
 /**
- * A Module for a Microcontroller Unit (MCU).
- * eg. a temperature sensor or a relay.
+ * A log entry related to a Microcontroller Unit (MCU).
  */
 @NoArgsConstructor
 @Getter
 @Setter
 @Accessors(chain = true, fluent = true)
 @ToString
-@EqualsAndHashCode
 @Entity
-@Table(name = "modules", catalog = "tlvlp_iot")
-public class Module {
+@Table(name ="unit_logs", catalog = "tlvlp_iot")
+public class UnitLog {
+
+    public enum Type {
+        INCOMING_ERROR, INCOMING_INACTIVE, OUTGOING_CONTROL, STATUS_CHANGE
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -40,18 +45,16 @@ public class Module {
     @Column(name = "unit_id", nullable = false)
     public Long unitId;
 
-    @NotBlank
-    public String module;
-
-    @NotBlank
-    public String name;
-
-    @EqualsAndHashCode.Exclude
     @NotNull
-    public Double value;
+    @Column(name = "time_utc", columnDefinition = "TIMESTAMP")
+    public ZonedDateTime timeUtc;
 
-    @EqualsAndHashCode.Exclude
     @NotNull
-    private Boolean active;
+    @Enumerated(EnumType.STRING)
+    public Type type;
+
+    @NotBlank
+    @Column(name = "log_entry", nullable = false)
+    public String logEntry;
 
 }

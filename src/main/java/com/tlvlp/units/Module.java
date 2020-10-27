@@ -1,7 +1,5 @@
-package com.tlvlp.units.persistence;
+package com.tlvlp.units;
 
-
-import io.quarkus.hibernate.orm.panache.PanacheEntity;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -15,12 +13,13 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
+import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
-import java.time.ZonedDateTime;
 
 /**
- * A Microcontroller Unit (MCU)
+ * A Module for a Microcontroller Unit (MCU).
+ * eg. a temperature sensor or a relay.
  */
 @NoArgsConstructor
 @Getter
@@ -29,32 +28,30 @@ import java.time.ZonedDateTime;
 @ToString
 @EqualsAndHashCode
 @Entity
-@Table(name = "units", catalog = "tlvlp_iot")
-public class Unit {
+@Table(name = "modules", catalog = "tlvlp_iot")
+public class Module {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank
-    private String project;
+    @NotNull
+    @Min(1L)
+    @Column(name = "unit_id", nullable = false)
+    public Long unitId;
 
     @NotBlank
-    private String name;
+    public String module;
+
+    @NotBlank
+    public String name;
+
+    @EqualsAndHashCode.Exclude
+    @NotNull
+    public Double value;
 
     @EqualsAndHashCode.Exclude
     @NotNull
     private Boolean active;
-
-    @EqualsAndHashCode.Exclude
-    @NotNull
-    @Column(name = "last_seen", nullable = false)
-    private ZonedDateTime lastSeen;
-
-    @EqualsAndHashCode.Exclude
-    @NotBlank
-    @Column(name = "control_topic", nullable = false)
-    private String controlTopic;
-
 
 }

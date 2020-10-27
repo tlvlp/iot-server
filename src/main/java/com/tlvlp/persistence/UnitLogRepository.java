@@ -1,7 +1,6 @@
-package com.tlvlp.units.persistence;
+package com.tlvlp.persistence;
 
-import com.tlvlp.persistence.PanacheRepositoryWithSave;
-import io.quarkus.hibernate.orm.panache.PanacheRepository;
+import com.tlvlp.units.UnitLog;
 
 import javax.enterprise.context.ApplicationScoped;
 import java.util.List;

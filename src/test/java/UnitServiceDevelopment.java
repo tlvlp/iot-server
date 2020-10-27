@@ -1,8 +1,8 @@
 import com.tlvlp.mqtt.GlobalTopics;
 import com.tlvlp.mqtt.Message;
 import com.tlvlp.units.UnitService;
-import com.tlvlp.units.persistence.Unit;
-import com.tlvlp.units.persistence.UnitRepository;
+import com.tlvlp.units.Unit;
+import com.tlvlp.persistence.UnitRepository;
 import io.quarkus.test.junit.QuarkusTest;
 import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.core.eventbus.EventBus;

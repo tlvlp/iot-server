@@ -1,4 +1,4 @@
-package com.tlvlp.units.persistence;
+package com.tlvlp.units;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
