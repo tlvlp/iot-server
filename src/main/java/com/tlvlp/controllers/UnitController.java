@@ -1,5 +1,6 @@
 package com.tlvlp.controllers;
 
+import com.tlvlp.persistence.UnitRepository;
 import com.tlvlp.units.UnitService;
 import com.tlvlp.units.Module;
 import com.tlvlp.units.ModuleDTO;
@@ -9,6 +10,7 @@ import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import lombok.extern.flogger.Flogger;
 
+import javax.inject.Inject;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
@@ -20,6 +22,8 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Flogger
 @Path("/units")

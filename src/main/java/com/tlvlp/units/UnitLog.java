@@ -18,6 +18,7 @@ import javax.persistence.Table;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
+import java.io.Serializable;
 import java.time.ZonedDateTime;
 
 /**
@@ -26,11 +27,11 @@ import java.time.ZonedDateTime;
 @NoArgsConstructor
 @Getter
 @Setter
-@Accessors(chain = true, fluent = true)
+@Accessors(chain = true)
 @ToString
 @Entity
 @Table(name ="unit_logs", catalog = "tlvlp_iot")
-public class UnitLog {
+public class UnitLog implements Serializable {
 
     public enum Type {
         INCOMING_ERROR, INCOMING_INACTIVE, OUTGOING_CONTROL, STATUS_CHANGE
@@ -43,18 +44,18 @@ public class UnitLog {
     @NotNull
     @Min(1L)
     @Column(name = "unit_id", nullable = false)
-    public Long unitId;
+    private Long unitId;
 
     @NotNull
     @Column(name = "time_utc", columnDefinition = "TIMESTAMP")
-    public ZonedDateTime timeUtc;
+    private ZonedDateTime timeUtc;
 
     @NotNull
     @Enumerated(EnumType.STRING)
-    public Type type;
+    private Type type;
 
     @NotBlank
     @Column(name = "log_entry", nullable = false)
-    public String logEntry;
+    private String logEntry;
 
 }

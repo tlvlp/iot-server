@@ -72,13 +72,13 @@ public class UnitService {
             Unit unit = unitRepository.findByIdOptional(unitId)
                     .orElseThrow(() -> new UnitException("Cannot find unit by Id:" + unitId));
             var body = Json.encodeToBuffer(moduleControls);
-            messageService.sendMessage(unit.controlTopic(), body);
+            messageService.sendMessage(unit.getControlTopic(), body);
 
             var unitLog = new UnitLog()
-                    .unitId(unit.id())
-                    .timeUtc(ZonedDateTime.now(ZoneOffset.UTC))
-                    .type(UnitLog.Type.OUTGOING_CONTROL)
-                    .logEntry(Json.encodePrettily(moduleControls));
+                    .setUnitId(unit.getId())
+                    .setTimeUtc(ZonedDateTime.now(ZoneOffset.UTC))
+                    .setType(UnitLog.Type.OUTGOING_CONTROL)
+                    .setLogEntry(Json.encodePrettily(moduleControls));
             unitLogRepository.save(unitLog);
 
             return Uni.createFrom().voidItem();
@@ -114,8 +114,8 @@ public class UnitService {
     private void handleErrorMessage(JsonObject body) {
         var timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
         var unit = getOrCreateUnitFromBody(body)
-                .active(true)
-                .lastSeenUtc(timeUtc);
+                .setActive(true)
+                .setLastSeenUtc(timeUtc);
 
         var error = Optional.ofNullable(body.getString("error"))
                 .orElseGet(() -> {
@@ -123,10 +123,10 @@ public class UnitService {
                     return "Error message is missing!";
                 });
         var unitLog = new UnitLog()
-                .unitId(unit.id())
-                .timeUtc(timeUtc)
-                .type(UnitLog.Type.INCOMING_ERROR)
-                .logEntry(error);
+                .setUnitId(unit.getId())
+                .setTimeUtc(timeUtc)
+                .setType(UnitLog.Type.INCOMING_ERROR)
+                .setLogEntry(error);
         unitLogRepository.save(unitLog);
 
         eventBus.publish("unit_error", Map.of(
@@ -137,18 +137,18 @@ public class UnitService {
     private void handleInactiveMessage(JsonObject body) {
         var timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
         var unit = getOrCreateUnitFromBody(body)
-                .active(false);
-        if (unit.lastSeenUtc() == null) {
+                .setActive(false);
+        if (unit.getLastSeenUtc() == null) {
             // Keep last seen data if present.
-            unit.lastSeenUtc(ZonedDateTime.now(ZoneOffset.UTC));
+            unit.setLastSeenUtc(ZonedDateTime.now(ZoneOffset.UTC));
         }
         var unitSaved = unitRepository.saveAndFlush(unit);
 
         var unitLog = new UnitLog()
-                .unitId(unitSaved.id())
-                .timeUtc(timeUtc)
-                .type(UnitLog.Type.INCOMING_INACTIVE)
-                .logEntry("Unit is inactive.");
+                .setUnitId(unitSaved.getId())
+                .setTimeUtc(timeUtc)
+                .setType(UnitLog.Type.INCOMING_INACTIVE)
+                .setLogEntry("Unit is inactive.");
         unitLogRepository.save(unitLog);
 
         eventBus.publish("unit_inactive", unitSaved);
@@ -157,8 +157,8 @@ public class UnitService {
     private void handleStatusMessage(JsonObject body) {
         var timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
         var unit = getOrCreateUnitFromBody(body)
-                .active(true)
-                .lastSeenUtc(timeUtc);
+                .setActive(true)
+                .setLastSeenUtc(timeUtc);
         var savedUnit = unitRepository.saveAndFlush(unit);
         updateOrCreateModulesFromBody(savedUnit, body);
     }
@@ -177,18 +177,18 @@ public class UnitService {
         var timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
 
         var unit = new Unit()
-                .project(project)
-                .name(name)
-                .active(true)
-                .lastSeenUtc(timeUtc)
-                .controlTopic(generateControlTopic(project, name));
+                .setProject(project)
+                .setName(name)
+                .setActive(true)
+                .setLastSeenUtc(timeUtc)
+                .setControlTopic(generateControlTopic(project, name));
         var unitSaved = unitRepository.saveAndFlush(unit);
 
         var unitLog = new UnitLog()
-                .unitId(unitSaved.id())
-                .timeUtc(timeUtc)
-                .type(UnitLog.Type.STATUS_CHANGE)
-                .logEntry("New Unit was registered.");
+                .setUnitId(unitSaved.getId())
+                .setTimeUtc(timeUtc)
+                .setType(UnitLog.Type.STATUS_CHANGE)
+                .setLogEntry("New Unit was registered.");
         unitLogRepository.save(unitLog);
 
         log.atInfo().log("New Unit was registered: %s", unitSaved);
@@ -201,18 +201,19 @@ public class UnitService {
     }
 
     private void updateOrCreateModulesFromBody(Unit unit, JsonObject body) {
+        Long unitId = unit.getId();
         var newModules = body.getJsonArray("modules")
                 .stream()
                 .map(moduleDtoObj -> Json.decodeValue(String.valueOf(moduleDtoObj), ModuleDTO.class))
-                .map(moduleDTO -> updateOrCreateModule(unit.id(), moduleDTO))
+                .map(moduleDTO -> updateOrCreateModule(unitId, moduleDTO))
                 .collect(Collectors.toSet());
 
         // Check for modules that are active in the DB but are no longer present in the status summary and inactivate them.
-        moduleRepository.getAllActiveModulesByUnitId(unit.id())
+        moduleRepository.getAllActiveModulesByUnitId(unitId)
                 .stream()
                 .filter(module -> !newModules.contains(module))
                 .forEach(module -> {
-                    module.active(false);
+                    module.setActive(false);
                     moduleRepository.save(module);
 
                     var updateMessage = String.format("Module was inactivated: %s", module);
@@ -220,10 +221,10 @@ public class UnitService {
                     log.atInfo().log(updateMessage);
 
                     var unitLog = new UnitLog()
-                            .unitId(unit.id())
-                            .timeUtc(ZonedDateTime.now(ZoneOffset.UTC))
-                            .type(UnitLog.Type.STATUS_CHANGE)
-                            .logEntry(updateMessage);
+                            .setUnitId(unitId)
+                            .setTimeUtc(ZonedDateTime.now(ZoneOffset.UTC))
+                            .setType(UnitLog.Type.STATUS_CHANGE)
+                            .setLogEntry(updateMessage);
                     unitLogRepository.save(unitLog);
                 });
     }
@@ -237,21 +238,21 @@ public class UnitService {
                 .orElseGet(() -> createAndPersistNewModule(unitId, moduleType, name, value));
 
         // Reactivation
-        if (!moduleDb.active().equals(true)) {
-            moduleDb.active(true);
+        if (!moduleDb.getActive().equals(true)) {
+            moduleDb.setActive(true);
             var msg = String.format("Module was reactivated: %s", moduleDb);
             var unitLog = new UnitLog()
-                    .unitId(unitId)
-                    .timeUtc(ZonedDateTime.now(ZoneOffset.UTC))
-                    .type(UnitLog.Type.STATUS_CHANGE)
-                    .logEntry(msg);
+                    .setUnitId(unitId)
+                    .setTimeUtc(ZonedDateTime.now(ZoneOffset.UTC))
+                    .setType(UnitLog.Type.STATUS_CHANGE)
+                    .setLogEntry(msg);
             unitLogRepository.save(unitLog);
             log.atInfo().log(msg);
         }
 
         // Value change
-        if (!moduleDb.value().equals(value)) {
-            moduleDb.value(value);
+        if (!moduleDb.getValue().equals(value)) {
+            moduleDb.setValue(value);
             log.atFine().log("Module value was updated: %s", moduleDb);
         }
 
@@ -260,20 +261,20 @@ public class UnitService {
 
     private Module createAndPersistNewModule(Long unitId, String moduleType, String name, Double value) {
         var module = new Module()
-                .unitId(unitId)
-                .module(moduleType)
-                .name(name)
-                .value(value)
-                .active(true);
+                .setUnitId(unitId)
+                .setModule(moduleType)
+                .setName(name)
+                .setValue(value)
+                .setActive(true);
         var moduleSaved = moduleRepository.saveAndFlush(module);
 
         var newModuleMessage = String.format("New Module was registered: %s", moduleSaved);
 
         var unitLog = new UnitLog()
-                .unitId(unitId)
-                .timeUtc(ZonedDateTime.now(ZoneOffset.UTC))
-                .type(UnitLog.Type.STATUS_CHANGE)
-                .logEntry(newModuleMessage);
+                .setUnitId(unitId)
+                .setTimeUtc(ZonedDateTime.now(ZoneOffset.UTC))
+                .setType(UnitLog.Type.STATUS_CHANGE)
+                .setLogEntry(newModuleMessage);
         unitLogRepository.save(unitLog);
 
         log.atInfo().log(newModuleMessage);
