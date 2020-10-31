@@ -1,4 +1,4 @@
-package com.tlvlp.controllers;
+package com.tlvlp.iot.server.controllers;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.DeserializationFeature;

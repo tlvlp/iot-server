@@ -1,8 +1,6 @@
-package com.tlvlp.units;
+package com.tlvlp.iot.server.units;
 
 
-import io.quarkus.runtime.annotations.RegisterForReflection;
-import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

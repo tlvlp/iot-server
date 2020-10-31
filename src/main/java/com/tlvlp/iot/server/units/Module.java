@@ -1,4 +1,4 @@
-package com.tlvlp.units;
+package com.tlvlp.iot.server.units;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;

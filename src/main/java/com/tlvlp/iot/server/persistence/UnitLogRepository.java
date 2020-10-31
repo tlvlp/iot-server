@@ -1,6 +1,6 @@
-package com.tlvlp.persistence;
+package com.tlvlp.iot.server.persistence;
 
-import com.tlvlp.units.UnitLog;
+import com.tlvlp.iot.server.units.UnitLog;
 import io.quarkus.panache.common.Sort;
 
 import javax.enterprise.context.ApplicationScoped;

@@ -1,10 +1,8 @@
-package com.tlvlp.mqtt;
+package com.tlvlp.iot.server.mqtt;
 
 
-import com.tlvlp.units.UnitService;
 import io.netty.handler.codec.mqtt.MqttQoS;
 import io.quarkus.runtime.Startup;
-import io.smallrye.mutiny.Uni;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.mqtt.MqttClient;

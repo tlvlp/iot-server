@@ -1,4 +1,4 @@
-package com.tlvlp.mqtt;
+package com.tlvlp.iot.server.mqtt;
 
 import java.util.Arrays;
 import java.util.stream.Stream;

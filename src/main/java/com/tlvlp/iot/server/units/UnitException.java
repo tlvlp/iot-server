@@ -1,4 +1,4 @@
-package com.tlvlp.units;
+package com.tlvlp.iot.server.units;
 
 public class UnitException extends RuntimeException {
     public UnitException(String message) {

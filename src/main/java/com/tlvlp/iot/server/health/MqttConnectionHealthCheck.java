@@ -1,6 +1,6 @@
-package com.tlvlp.health;
+package com.tlvlp.iot.server.health;
 
-import com.tlvlp.mqtt.MessageService;
+import com.tlvlp.iot.server.mqtt.MessageService;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.eclipse.microprofile.health.HealthCheckResponseBuilder;

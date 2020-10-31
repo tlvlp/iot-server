@@ -1,11 +1,6 @@
-package com.tlvlp.persistence;
+package com.tlvlp.iot.server.persistence;
 
 import io.quarkus.hibernate.orm.panache.PanacheRepository;
-
-import java.util.Collection;
-import java.util.List;
-
-import static java.util.stream.Collectors.toList;
 
 public interface PanacheRepositoryWithSave<T> extends PanacheRepository<T> {
 

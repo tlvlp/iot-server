@@ -1,11 +1,11 @@
-package com.tlvlp.units;
+package com.tlvlp.iot.server.units;
 
-import com.tlvlp.mqtt.GlobalTopics;
-import com.tlvlp.mqtt.Message;
-import com.tlvlp.mqtt.MessageService;
-import com.tlvlp.persistence.ModuleRepository;
-import com.tlvlp.persistence.UnitLogRepository;
-import com.tlvlp.persistence.UnitRepository;
+import com.tlvlp.iot.server.mqtt.GlobalTopics;
+import com.tlvlp.iot.server.mqtt.Message;
+import com.tlvlp.iot.server.mqtt.MessageService;
+import com.tlvlp.iot.server.persistence.ModuleRepository;
+import com.tlvlp.iot.server.persistence.UnitLogRepository;
+import com.tlvlp.iot.server.persistence.UnitRepository;
 import io.quarkus.runtime.Startup;
 import io.quarkus.vertx.ConsumeEvent;
 import io.smallrye.mutiny.Multi;

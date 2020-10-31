@@ -1,11 +1,6 @@
-package com.tlvlp.mqtt;
+package com.tlvlp.iot.server.mqtt;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.handler.codec.mqtt.MqttQoS;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
-import io.vertx.mqtt.messages.impl.MqttPublishMessageImpl;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
