@@ -1,5 +1,11 @@
 package com.tlvlp.iot.server.units;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.tlvlp.iot.server.mqtt.GlobalTopics;
 import com.tlvlp.iot.server.mqtt.Message;
 import com.tlvlp.iot.server.mqtt.MessageService;
@@ -10,6 +16,7 @@ import io.quarkus.runtime.Startup;
 import io.quarkus.vertx.ConsumeEvent;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.core.eventbus.EventBus;
@@ -20,9 +27,14 @@ import javax.transaction.Transactional;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.*;
 
 @Startup
 @Flogger
@@ -30,17 +42,20 @@ import java.util.stream.Collectors;
 public class UnitService {
 
     private final EventBus eventBus;
+    private final JsonMapper jsonMapper;
     private final MessageService messageService;
     private final UnitRepository unitRepository;
     private final ModuleRepository moduleRepository;
     private final UnitLogRepository unitLogRepository;
 
     public UnitService(EventBus eventBus,
+                       JsonMapper jsonMapper,
                        MessageService messageService,
                        UnitRepository unitRepository,
                        ModuleRepository moduleRepository,
                        UnitLogRepository unitLogRepository) {
         this.eventBus = eventBus;
+        this.jsonMapper = jsonMapper;
         this.messageService = messageService;
         this.unitRepository = unitRepository;
         this.moduleRepository = moduleRepository;
@@ -67,23 +82,55 @@ public class UnitService {
                 .onFailure().invoke(e -> log.atSevere().log("Unable to get modules by unit id(%s): %s", unitId, e.getMessage()));
     }
 
-    public Uni<Void> sendControlMessages(Long unitId, Collection<ModuleDTO> moduleControls) {
+    @ConsumeEvent(value = "unit_control", blocking = true)
+    public Uni<Void> sendScheduledControlMessages(String moduleControlsJson) {
         try {
-            Unit unit = unitRepository.findByIdOptional(unitId)
-                    .orElseThrow(() -> new UnitException("Cannot find unit by Id:" + unitId));
-            var body = Json.encodeToBuffer(moduleControls);
-            messageService.sendMessage(unit.getControlTopic(), body);
+            List<Module> moduleControlsAll = jsonMapper.readValue(moduleControlsJson, new TypeReference<>() {});
+            sendControlMessages(moduleControlsAll);
+        } catch (JsonProcessingException e) {
+            var err = String.format("Unable to send module control messages. Cannot parse message contents: %s", moduleControlsJson);
+            log.atSevere().log(err);
 
-            var unitLog = new UnitLog()
-                    .setUnitId(unit.getId())
-                    .setTimeUtc(ZonedDateTime.now(ZoneOffset.UTC))
-                    .setType(UnitLog.Type.OUTGOING_CONTROL)
-                    .setLogEntry(Json.encodePrettily(moduleControls));
-            unitLogRepository.save(unitLog);
+        }
+        return Uni.createFrom().voidItem();
+    }
+
+    /**
+     * Sends out unit control messages for any number of units and modules.
+     * Note: If a module has more than one instance in the list, then the execution order is not guaranteed.
+     *
+     * @param moduleControlsAll a list of modified {@link Module}s that will be converted and sent out to control the MCUs.
+     * @return void.
+     */
+    public Uni<Void> sendControlMessages(List<Module> moduleControlsAll) {
+        try {
+            Map<Long, List<ModuleDTO>> modulesByUnitIds = moduleControlsAll.stream()
+                    .collect(groupingBy(Module::getUnitId, mapping(this::convertModuleToModuleDTO, toList())));
+
+            modulesByUnitIds.forEach((unitId, moduleControls) -> {
+                Unit unit = unitRepository.findById(unitId);
+                if (unit == null) {
+                    log.atSevere().log("Unable to send module control messages to non-existent unit Id:%s, modules:%s",
+                            unitId, moduleControls);
+                    return;
+                }
+
+                Buffer body = Json.encodeToBuffer(moduleControls);
+                messageService.sendMessage(unit.getControlTopic(), body);
+
+                var unitLog = new UnitLog()
+                        .setUnitId(unit.getId())
+                        .setTimeUtc(ZonedDateTime.now(ZoneOffset.UTC))
+                        .setType(UnitLog.Type.OUTGOING_CONTROL)
+                        .setLogEntry(Json.encodePrettily(moduleControlsAll));
+                unitLogRepository.save(unitLog);
+            });
 
             return Uni.createFrom().voidItem();
         } catch (Exception e) {
-            return Uni.createFrom().failure(e);
+            return Uni.createFrom().failure(new UnitException(
+                    String.format("Unable to send unit control message! Module controls:%s %n%s",
+                            moduleControlsAll, e.getMessage())));
         }
 
     }
@@ -230,9 +277,9 @@ public class UnitService {
     }
 
     private Module updateOrCreateModule(Long unitId, ModuleDTO dto) {
-        var moduleType = dto.module();
-        var name = dto.name();
-        var value = dto.value();
+        var moduleType = dto.getModule();
+        var name = dto.getName();
+        var value = dto.getValue();
 
         var moduleDb = moduleRepository.findByUnitIdAndModuleAndName(unitId, moduleType, name)
                 .orElseGet(() -> createAndPersistNewModule(unitId, moduleType, name, value));
@@ -280,6 +327,13 @@ public class UnitService {
         log.atInfo().log(newModuleMessage);
 
         return moduleSaved;
+    }
+
+    private ModuleDTO convertModuleToModuleDTO(Module module) {
+        return new ModuleDTO()
+                .setModule(module.getModule())
+                .setName(module.getName())
+                .setValue(module.getValue());
     }
 
 }
