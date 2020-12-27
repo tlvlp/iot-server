@@ -1,9 +1,7 @@
-package com.tlvlp.iot.server.units;
+package com.tlvlp.iot.server.mcu;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JavaType;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.tlvlp.iot.server.mqtt.GlobalTopics;
@@ -26,12 +24,9 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.transaction.Transactional;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.*;
@@ -39,21 +34,21 @@ import static java.util.stream.Collectors.*;
 @Startup
 @Flogger
 @ApplicationScoped
-public class UnitService {
+public class McuService {
 
     private final EventBus eventBus;
-    private final JsonMapper jsonMapper;
+    private final ObjectMapper jsonMapper;
     private final MessageService messageService;
     private final UnitRepository unitRepository;
     private final ModuleRepository moduleRepository;
     private final UnitLogRepository unitLogRepository;
 
-    public UnitService(EventBus eventBus,
-                       JsonMapper jsonMapper,
-                       MessageService messageService,
-                       UnitRepository unitRepository,
-                       ModuleRepository moduleRepository,
-                       UnitLogRepository unitLogRepository) {
+    public McuService(EventBus eventBus,
+                      ObjectMapper jsonMapper,
+                      MessageService messageService,
+                      UnitRepository unitRepository,
+                      ModuleRepository moduleRepository,
+                      UnitLogRepository unitLogRepository) {
         this.eventBus = eventBus;
         this.jsonMapper = jsonMapper;
         this.messageService = messageService;

@@ -1,6 +1,6 @@
 package com.tlvlp.iot.server.persistence;
 
-import com.tlvlp.iot.server.units.Unit;
+import com.tlvlp.iot.server.mcu.Unit;
 
 import javax.enterprise.context.ApplicationScoped;
 import java.util.Optional;

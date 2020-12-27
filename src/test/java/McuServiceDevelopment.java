@@ -1,7 +1,7 @@
 import com.tlvlp.iot.server.mqtt.GlobalTopics;
 import com.tlvlp.iot.server.mqtt.Message;
-import com.tlvlp.iot.server.units.UnitService;
-import com.tlvlp.iot.server.units.Unit;
+import com.tlvlp.iot.server.mcu.McuService;
+import com.tlvlp.iot.server.mcu.Unit;
 import com.tlvlp.iot.server.persistence.UnitRepository;
 import io.quarkus.test.junit.QuarkusTest;
 import io.vertx.core.json.JsonObject;
@@ -19,10 +19,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @QuarkusTest
 @Transactional
-public class UnitServiceDevelopment {
+public class McuServiceDevelopment {
 
     @Inject
-    UnitService unitService;
+    McuService mcuService;
 
     @Inject
     UnitRepository unitRepository;
@@ -64,7 +64,7 @@ public class UnitServiceDevelopment {
 
         // when
         IntStream.range(0, 3).forEach(i ->
-                unitService.handleIngressMessage(message)
+                mcuService.handleIngressMessage(message)
 //                eventBus.sendAndForget("mqtt_ingress", message)
         );
 

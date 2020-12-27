@@ -1,6 +1,6 @@
 package com.tlvlp.iot.server.persistence;
 
-import com.tlvlp.iot.server.units.Module;
+import com.tlvlp.iot.server.mcu.Module;
 
 import javax.enterprise.context.ApplicationScoped;
 import java.util.HashSet;

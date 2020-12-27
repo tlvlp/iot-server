@@ -1,20 +1,13 @@
 package com.tlvlp.iot.server.controllers;
 
-import com.tlvlp.iot.server.scheduler.EventJob;
-import com.tlvlp.iot.server.scheduler.ScheduledEventException;
 import com.tlvlp.iot.server.scheduler.SchedulerService;
-import com.tlvlp.iot.server.units.UnitService;
-import com.tlvlp.iot.server.units.Module;
-import com.tlvlp.iot.server.units.ModuleDTO;
-import com.tlvlp.iot.server.units.Unit;
-import com.tlvlp.iot.server.units.UnitLog;
+import com.tlvlp.iot.server.mcu.Module;
+import com.tlvlp.iot.server.mcu.Unit;
+import com.tlvlp.iot.server.mcu.UnitLog;
+import com.tlvlp.iot.server.mcu.McuService;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import lombok.extern.flogger.Flogger;
-import org.quartz.CronTrigger;
-import org.quartz.JobBuilder;
-import org.quartz.JobDetail;
-import org.quartz.TriggerBuilder;
 
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotEmpty;
@@ -26,10 +19,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
-import java.util.Collection;
 import java.util.List;
-
-import static org.quartz.CronScheduleBuilder.cronSchedule;
 
 @Flogger
 @Path("/units")
@@ -37,42 +27,42 @@ import static org.quartz.CronScheduleBuilder.cronSchedule;
 @Produces(MediaType.APPLICATION_JSON)
 public class UnitController {
 
-    private final UnitService unitService;
+    private final McuService mcuService;
     private final SchedulerService schedulerService;
 
-    public UnitController(UnitService unitService, SchedulerService schedulerService) {
-        this.unitService = unitService;
+    public UnitController(McuService mcuService, SchedulerService schedulerService) {
+        this.mcuService = mcuService;
         this.schedulerService = schedulerService;
     }
 
     @GET
     @Path("/all")
     public Multi<Unit> getAllUnits() {
-        return unitService.getAllUnits();
+        return mcuService.getAllUnits();
     }
 
     @GET
     @Path("/{unit_id}")
     public Uni<Unit> getUnitById(@PathParam("unit_id") @NotNull @Min(1L) Long unitId) {
-        return unitService.getUnitById(unitId);
+        return mcuService.getUnitById(unitId);
     }
 
     @GET
     @Path("/{unit_id}/logs")
     public Multi<UnitLog> getUnitLogsByUnitId(@PathParam("unit_id") @NotNull @Min(1L) Long unitId) {
-        return unitService.getUnitLogsByUnitId(unitId);
+        return mcuService.getUnitLogsByUnitId(unitId);
     }
 
     @GET
     @Path("/{unit_id}/modules")
     public Multi<Module> getModulesByUnitId(@PathParam("unit_id") @NotNull @Min(1L) Long unitId) {
-        return unitService.getModulesByUnitId(unitId);
+        return mcuService.getModulesByUnitId(unitId);
     }
 
     @POST
     @Path("/control")
     public Uni<Void> sendControlMessages(@NotEmpty List<Module> moduleControls) {
-        return unitService.sendControlMessages(moduleControls);
+        return mcuService.sendControlMessages(moduleControls);
     }
 
     public void addScheduledEvent(String schedulerGroup, String schedulerName, String cron, String eventAddress, String eventMessage) {
