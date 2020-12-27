@@ -111,7 +111,7 @@ public class McuService {
                 }
 
                 Buffer body = Json.encodeToBuffer(moduleControls);
-                messageService.sendMessage(unit.getControlTopic(), body);
+                messageService.sendMessage(getControlTopic(unit), body);
 
                 var unitLog = new UnitLog()
                         .setUnitId(unit.getId())
@@ -222,8 +222,7 @@ public class McuService {
                 .setProject(project)
                 .setName(name)
                 .setActive(true)
-                .setLastSeenUtc(timeUtc)
-                .setControlTopic(generateControlTopic(project, name));
+                .setLastSeenUtc(timeUtc);
         var unitSaved = unitRepository.saveAndFlush(unit);
 
         var unitLog = new UnitLog()
@@ -238,8 +237,8 @@ public class McuService {
         return unitSaved;
     }
 
-    private String generateControlTopic(String project, String name) {
-        return String.format("/units/%s-%s/control", project, name);
+    private String getControlTopic(Unit unit) {
+        return String.format("/units/%s-%s/control", unit.getProject(), unit.getName());
     }
 
     private void updateOrCreateModulesFromBody(Unit unit, JsonObject body) {

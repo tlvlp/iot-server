@@ -51,10 +51,4 @@ public class Unit implements Serializable {
     @Column(name = "last_seen_utc", nullable = false, columnDefinition = "TIMESTAMP")
     private ZonedDateTime lastSeenUtc;
 
-    @EqualsAndHashCode.Exclude
-    @NotBlank
-    @Column(name = "control_topic", nullable = false)
-    private String controlTopic;
-
-
 }

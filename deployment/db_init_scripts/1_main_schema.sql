@@ -9,7 +9,6 @@ CREATE TABLE `units`
     `name`          varchar(255) NOT NULL,
     `active`        bit(1)       NOT NULL,
     `last_seen_utc` datetime(6)  NOT NULL,
-    `control_topic` varchar(255) NOT NULL,
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
@@ -23,7 +22,10 @@ CREATE TABLE `modules`
     `name`    varchar(255) DEFAULT NULL,
     `value`   double     NOT NULL,
     `active`  bit(1)       NOT NULL,
-    PRIMARY KEY (`id`)
+    PRIMARY KEY (`id`),
+    FOREIGN KEY (`unit_id`)
+        REFERENCES units (id)
+        ON DELETE CASCADE
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci;
@@ -35,7 +37,10 @@ CREATE TABLE `unit_logs`
     `log_entry` varchar(255) NOT NULL,
     `time_utc`  datetime(6)  NOT NULL,
     `type`      varchar(50)  NOT NULL,
-    PRIMARY KEY (`id`)
+    PRIMARY KEY (`id`),
+    FOREIGN KEY (`unit_id`)
+        REFERENCES units (id)
+        ON DELETE CASCADE
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_520_ci;
