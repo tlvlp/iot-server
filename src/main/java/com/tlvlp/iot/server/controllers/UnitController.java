@@ -18,11 +18,12 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import java.util.List;
 
 @Flogger
-@Path("/units")
+@Path("/mcu")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 public class UnitController {
@@ -42,20 +43,19 @@ public class UnitController {
     }
 
     @GET
-    @Path("/{unit_id}")
-    public Uni<Unit> getUnitById(@PathParam("unit_id") @NotNull @Min(1L) Long unitId) {
+    public Uni<Unit> getUnitById(@QueryParam("unit_id") @NotNull @Min(1L) Long unitId) {
         return mcuService.getUnitById(unitId);
     }
 
     @GET
-    @Path("/{unit_id}/logs")
-    public Multi<UnitLog> getUnitLogsByUnitId(@PathParam("unit_id") @NotNull @Min(1L) Long unitId) {
+    @Path("/logs")
+    public Multi<UnitLog> getUnitLogsByUnitId(@QueryParam("unit_id") @NotNull @Min(1L) Long unitId) {
         return mcuService.getUnitLogsByUnitId(unitId);
     }
 
     @GET
-    @Path("/{unit_id}/modules")
-    public Multi<Module> getModulesByUnitId(@PathParam("unit_id") @NotNull @Min(1L) Long unitId) {
+    @Path("/modules")
+    public Multi<Module> getModulesByUnitId(@QueryParam("unit_id") @NotNull @Min(1L) Long unitId) {
         return mcuService.getModulesByUnitId(unitId);
     }
 
