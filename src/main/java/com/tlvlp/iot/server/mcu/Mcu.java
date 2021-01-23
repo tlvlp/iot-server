@@ -29,8 +29,8 @@ import java.time.ZonedDateTime;
 @ToString
 @EqualsAndHashCode
 @Entity
-@Table(name = "units", catalog = "tlvlp_iot")
-public class Unit implements Serializable {
+@Table(name = "mcus", catalog = "tlvlp_iot")
+public class Mcu implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

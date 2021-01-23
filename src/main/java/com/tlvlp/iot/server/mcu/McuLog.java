@@ -22,7 +22,7 @@ import java.io.Serializable;
 import java.time.ZonedDateTime;
 
 /**
- * A log entry related to a Microcontroller Unit (MCU).
+ * A log entry related to a MCU.
  */
 @NoArgsConstructor
 @Getter
@@ -30,8 +30,8 @@ import java.time.ZonedDateTime;
 @Accessors(chain = true)
 @ToString
 @Entity
-@Table(name ="unit_logs", catalog = "tlvlp_iot")
-public class UnitLog implements Serializable {
+@Table(name ="mcu_logs", catalog = "tlvlp_iot")
+public class McuLog implements Serializable {
 
     public enum Type {
         INCOMING_ERROR, INCOMING_INACTIVE, OUTGOING_CONTROL, STATUS_CHANGE
@@ -43,8 +43,8 @@ public class UnitLog implements Serializable {
 
     @NotNull
     @Min(1L)
-    @Column(name = "unit_id", nullable = false)
-    private Long unitId;
+    @Column(name = "mcu_id", nullable = false)
+    private Long mcuId;
 
     @NotNull
     @Column(name = "time_utc", columnDefinition = "TIMESTAMP")

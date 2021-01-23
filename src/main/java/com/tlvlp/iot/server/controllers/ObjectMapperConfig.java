@@ -10,7 +10,7 @@ import io.quarkus.jackson.ObjectMapperCustomizer;
 import javax.inject.Singleton;
 
 @Singleton
-public class ObjectMapperCustomization implements ObjectMapperCustomizer {
+public class ObjectMapperConfig implements ObjectMapperCustomizer {
 
     public void customize(ObjectMapper mapper) {
         mapper.registerModule(new JavaTimeModule());

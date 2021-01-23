@@ -3,13 +3,12 @@ package com.tlvlp.iot.server.mcu;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.tlvlp.iot.server.mqtt.GlobalTopics;
 import com.tlvlp.iot.server.mqtt.Message;
 import com.tlvlp.iot.server.mqtt.MessageService;
 import com.tlvlp.iot.server.persistence.ModuleRepository;
-import com.tlvlp.iot.server.persistence.UnitLogRepository;
-import com.tlvlp.iot.server.persistence.UnitRepository;
+import com.tlvlp.iot.server.persistence.McuLogRepository;
+import com.tlvlp.iot.server.persistence.McuRepository;
 import io.quarkus.runtime.Startup;
 import io.quarkus.vertx.ConsumeEvent;
 import io.smallrye.mutiny.Multi;
@@ -39,45 +38,45 @@ public class McuService {
     private final EventBus eventBus;
     private final ObjectMapper jsonMapper;
     private final MessageService messageService;
-    private final UnitRepository unitRepository;
+    private final McuRepository mcuRepository;
     private final ModuleRepository moduleRepository;
-    private final UnitLogRepository unitLogRepository;
+    private final McuLogRepository mcuLogRepository;
 
     public McuService(EventBus eventBus,
                       ObjectMapper jsonMapper,
                       MessageService messageService,
-                      UnitRepository unitRepository,
+                      McuRepository mcuRepository,
                       ModuleRepository moduleRepository,
-                      UnitLogRepository unitLogRepository) {
+                      McuLogRepository mcuLogRepository) {
         this.eventBus = eventBus;
         this.jsonMapper = jsonMapper;
         this.messageService = messageService;
-        this.unitRepository = unitRepository;
+        this.mcuRepository = mcuRepository;
         this.moduleRepository = moduleRepository;
-        this.unitLogRepository = unitLogRepository;
+        this.mcuLogRepository = mcuLogRepository;
     }
 
-    public Multi<Unit> getAllUnits() {
-        return Multi.createFrom().items(unitRepository.streamAll())
-                .onFailure().invoke(e -> log.atSevere().log("Unable to get all units: %s", e.getMessage()));
+    public Multi<Mcu> getAllMcus() {
+        return Multi.createFrom().items(mcuRepository.streamAll())
+                .onFailure().invoke(e -> log.atSevere().log("Unable to get all mcus: %s", e.getMessage()));
     }
 
-    public Uni<Unit> getUnitById(Long unitId) {
-        return Uni.createFrom().item(unitRepository.findById(unitId))
-                .onFailure().invoke(e -> log.atSevere().log("Unable to get unit by id(%s): %s", unitId, e.getMessage()));
+    public Uni<Mcu> getMcuById(Long mcuId) {
+        return Uni.createFrom().item(mcuRepository.findById(mcuId))
+                .onFailure().invoke(e -> log.atSevere().log("Unable to get mcu by id(%s): %s", mcuId, e.getMessage()));
     }
 
-    public Multi<UnitLog> getUnitLogsByUnitId(Long unitId) {
-        return Multi.createFrom().items(unitLogRepository.findAllByUnitId(unitId).stream())
-                .onFailure().invoke(e -> log.atSevere().log("Unable to get unit logs by unit id(%s): %s", unitId, e.getMessage()));
+    public Multi<McuLog> getMcuLogsByMcuId(Long mcuId) {
+        return Multi.createFrom().items(mcuLogRepository.findAllByMcuId(mcuId).stream())
+                .onFailure().invoke(e -> log.atSevere().log("Unable to get mcu logs by mcu id(%s): %s", mcuId, e.getMessage()));
     }
 
-    public Multi<Module> getModulesByUnitId(Long unitId) {
-        return Multi.createFrom().items(moduleRepository.findAllByUnitId(unitId).stream())
-                .onFailure().invoke(e -> log.atSevere().log("Unable to get modules by unit id(%s): %s", unitId, e.getMessage()));
+    public Multi<Module> getModulesByMcuId(Long mcuId) {
+        return Multi.createFrom().items(moduleRepository.findAllByMcuId(mcuId).stream())
+                .onFailure().invoke(e -> log.atSevere().log("Unable to get modules by mcu id(%s): %s", mcuId, e.getMessage()));
     }
 
-    @ConsumeEvent(value = "unit_control", blocking = true)
+    @ConsumeEvent(value = "mcu_control", blocking = true)
     public Uni<Void> sendScheduledControlMessages(String moduleControlsJson) {
         try {
             List<Module> moduleControlsAll = jsonMapper.readValue(moduleControlsJson, new TypeReference<>() {});
@@ -91,7 +90,7 @@ public class McuService {
     }
 
     /**
-     * Sends out unit control messages for any number of units and modules.
+     * Sends out mcu control messages for any number of MCUs and modules.
      * Note: If a module has more than one instance in the list, then the execution order is not guaranteed.
      *
      * @param moduleControlsAll a list of modified {@link Module}s that will be converted and sent out to control the MCUs.
@@ -99,32 +98,32 @@ public class McuService {
      */
     public Uni<Void> sendControlMessages(List<Module> moduleControlsAll) {
         try {
-            Map<Long, List<ModuleDTO>> modulesByUnitIds = moduleControlsAll.stream()
-                    .collect(groupingBy(Module::getUnitId, mapping(this::convertModuleToModuleDTO, toList())));
+            Map<Long, List<ModuleDTO>> modulesByMcuIds = moduleControlsAll.stream()
+                    .collect(groupingBy(Module::getMcuId, mapping(this::convertModuleToModuleDTO, toList())));
 
-            modulesByUnitIds.forEach((unitId, moduleControls) -> {
-                Unit unit = unitRepository.findById(unitId);
-                if (unit == null) {
-                    log.atSevere().log("Unable to send module control messages to non-existent unit Id:%s, modules:%s",
-                            unitId, moduleControls);
+            modulesByMcuIds.forEach((mcuId, moduleControls) -> {
+                Mcu mcu = mcuRepository.findById(mcuId);
+                if (mcu == null) {
+                    log.atSevere().log("Unable to send module control messages to non-existent mcu Id:%s, modules:%s",
+                            mcuId, moduleControls);
                     return;
                 }
 
                 Buffer body = Json.encodeToBuffer(moduleControls);
-                messageService.sendMessage(getControlTopic(unit), body);
+                messageService.sendMessage(getControlTopic(mcu), body);
 
-                var unitLog = new UnitLog()
-                        .setUnitId(unit.getId())
+                var mcuLog = new McuLog()
+                        .setMcuId(mcu.getId())
                         .setTimeUtc(ZonedDateTime.now(ZoneOffset.UTC))
-                        .setType(UnitLog.Type.OUTGOING_CONTROL)
+                        .setType(McuLog.Type.OUTGOING_CONTROL)
                         .setLogEntry(Json.encodePrettily(moduleControlsAll));
-                unitLogRepository.save(unitLog);
+                mcuLogRepository.save(mcuLog);
             });
 
             return Uni.createFrom().voidItem();
         } catch (Exception e) {
-            return Uni.createFrom().failure(new UnitException(
-                    String.format("Unable to send unit control message! Module controls:%s %n%s",
+            return Uni.createFrom().failure(new McuException(
+                    String.format("Unable to send mcu control message! Module controls:%s %n%s",
                             moduleControlsAll, e.getMessage())));
         }
 
@@ -155,102 +154,102 @@ public class McuService {
 
     private void handleErrorMessage(JsonObject body) {
         var timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
-        var unit = getOrCreateUnitFromBody(body)
+        var mcu = getOrCreateMcuFromBody(body)
                 .setActive(true)
                 .setLastSeenUtc(timeUtc);
 
         var error = Optional.ofNullable(body.getString("error"))
                 .orElseGet(() -> {
-                    log.atSevere().log("Missing error message for unit: %s", unit);
+                    log.atSevere().log("Missing error message for mcu: %s", mcu);
                     return "Error message is missing!";
                 });
-        var unitLog = new UnitLog()
-                .setUnitId(unit.getId())
+        var mcuLog = new McuLog()
+                .setMcuId(mcu.getId())
                 .setTimeUtc(timeUtc)
-                .setType(UnitLog.Type.INCOMING_ERROR)
+                .setType(McuLog.Type.INCOMING_ERROR)
                 .setLogEntry(error);
-        unitLogRepository.save(unitLog);
+        mcuLogRepository.save(mcuLog);
 
-        eventBus.publish("unit_error", Map.of(
-                "unit", unit,
+        eventBus.publish("mcu_error", Map.of(
+                "mcu", mcu,
                 "error", error));
     }
 
     private void handleInactiveMessage(JsonObject body) {
         var timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
-        var unit = getOrCreateUnitFromBody(body)
+        var mcu = getOrCreateMcuFromBody(body)
                 .setActive(false);
-        if (unit.getLastSeenUtc() == null) {
+        if (mcu.getLastSeenUtc() == null) {
             // Keep last seen data if present.
-            unit.setLastSeenUtc(ZonedDateTime.now(ZoneOffset.UTC));
+            mcu.setLastSeenUtc(ZonedDateTime.now(ZoneOffset.UTC));
         }
-        var unitSaved = unitRepository.saveAndFlush(unit);
+        var mcuSaved = mcuRepository.saveAndFlush(mcu);
 
-        var unitLog = new UnitLog()
-                .setUnitId(unitSaved.getId())
+        var mcuLog = new McuLog()
+                .setMcuId(mcuSaved.getId())
                 .setTimeUtc(timeUtc)
-                .setType(UnitLog.Type.INCOMING_INACTIVE)
-                .setLogEntry("Unit is inactive.");
-        unitLogRepository.save(unitLog);
+                .setType(McuLog.Type.INCOMING_INACTIVE)
+                .setLogEntry("MCU is inactive.");
+        mcuLogRepository.save(mcuLog);
 
-        eventBus.publish("unit_inactive", unitSaved);
+        eventBus.publish("mcu_inactive", mcuSaved);
     }
 
     private void handleStatusMessage(JsonObject body) {
         var timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
-        var unit = getOrCreateUnitFromBody(body)
+        var mcu = getOrCreateMcuFromBody(body)
                 .setActive(true)
                 .setLastSeenUtc(timeUtc);
-        var savedUnit = unitRepository.saveAndFlush(unit);
-        updateOrCreateModulesFromBody(savedUnit, body);
+        var savedMcu = mcuRepository.saveAndFlush(mcu);
+        updateOrCreateModulesFromBody(savedMcu, body);
     }
 
-    private Unit getOrCreateUnitFromBody(JsonObject body) {
+    private Mcu getOrCreateMcuFromBody(JsonObject body) {
         var idJson = body.getJsonObject("id");
         var project = idJson.getString("project");
-        var name = idJson.getString("unitName");
+        var name = idJson.getString("mcuName");
 
-        return unitRepository
+        return mcuRepository
                 .findByProjectAndName(project, name)
-                .orElseGet(() -> createAndPersistNewUnit(project, name));
+                .orElseGet(() -> createAndPersistNewMcu(project, name));
     }
 
-    private Unit createAndPersistNewUnit(String project, String name) {
+    private Mcu createAndPersistNewMcu(String project, String name) {
         var timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
 
-        var unit = new Unit()
+        var mcu = new Mcu()
                 .setProject(project)
                 .setName(name)
                 .setActive(true)
                 .setLastSeenUtc(timeUtc);
-        var unitSaved = unitRepository.saveAndFlush(unit);
+        var mcuSaved = mcuRepository.saveAndFlush(mcu);
 
-        var unitLog = new UnitLog()
-                .setUnitId(unitSaved.getId())
+        var mcuLog = new McuLog()
+                .setMcuId(mcuSaved.getId())
                 .setTimeUtc(timeUtc)
-                .setType(UnitLog.Type.STATUS_CHANGE)
-                .setLogEntry("New Unit was registered.");
-        unitLogRepository.save(unitLog);
+                .setType(McuLog.Type.STATUS_CHANGE)
+                .setLogEntry("New MCU was registered.");
+        mcuLogRepository.save(mcuLog);
 
-        log.atInfo().log("New Unit was registered: %s", unitSaved);
+        log.atInfo().log("New MCU was registered: %s", mcuSaved);
 
-        return unitSaved;
+        return mcuSaved;
     }
 
-    private String getControlTopic(Unit unit) {
-        return String.format("/units/%s-%s/control", unit.getProject(), unit.getName());
+    private String getControlTopic(Mcu mcu) {
+        return String.format("/mcu/%s-%s/control", mcu.getProject(), mcu.getName());
     }
 
-    private void updateOrCreateModulesFromBody(Unit unit, JsonObject body) {
-        Long unitId = unit.getId();
+    private void updateOrCreateModulesFromBody(Mcu mcu, JsonObject body) {
+        Long mcuId = mcu.getId();
         var newModules = body.getJsonArray("modules")
                 .stream()
                 .map(moduleDtoObj -> Json.decodeValue(String.valueOf(moduleDtoObj), ModuleDTO.class))
-                .map(moduleDTO -> updateOrCreateModule(unitId, moduleDTO))
+                .map(moduleDTO -> updateOrCreateModule(mcuId, moduleDTO))
                 .collect(Collectors.toSet());
 
         // Check for modules that are active in the DB but are no longer present in the status summary and inactivate them.
-        moduleRepository.getAllActiveModulesByUnitId(unitId)
+        moduleRepository.getAllActiveModulesByMcuId(mcuId)
                 .stream()
                 .filter(module -> !newModules.contains(module))
                 .forEach(module -> {
@@ -261,33 +260,33 @@ public class McuService {
 
                     log.atInfo().log(updateMessage);
 
-                    var unitLog = new UnitLog()
-                            .setUnitId(unitId)
+                    var mcuLog = new McuLog()
+                            .setMcuId(mcuId)
                             .setTimeUtc(ZonedDateTime.now(ZoneOffset.UTC))
-                            .setType(UnitLog.Type.STATUS_CHANGE)
+                            .setType(McuLog.Type.STATUS_CHANGE)
                             .setLogEntry(updateMessage);
-                    unitLogRepository.save(unitLog);
+                    mcuLogRepository.save(mcuLog);
                 });
     }
 
-    private Module updateOrCreateModule(Long unitId, ModuleDTO dto) {
+    private Module updateOrCreateModule(Long mcuId, ModuleDTO dto) {
         var moduleType = dto.getModule();
         var name = dto.getName();
         var value = dto.getValue();
 
-        var moduleDb = moduleRepository.findByUnitIdAndModuleAndName(unitId, moduleType, name)
-                .orElseGet(() -> createAndPersistNewModule(unitId, moduleType, name, value));
+        var moduleDb = moduleRepository.findByMcuIdAndModuleAndName(mcuId, moduleType, name)
+                .orElseGet(() -> createAndPersistNewModule(mcuId, moduleType, name, value));
 
         // Reactivation
         if (!moduleDb.getActive().equals(true)) {
             moduleDb.setActive(true);
             var msg = String.format("Module was reactivated: %s", moduleDb);
-            var unitLog = new UnitLog()
-                    .setUnitId(unitId)
+            var mcuLog = new McuLog()
+                    .setMcuId(mcuId)
                     .setTimeUtc(ZonedDateTime.now(ZoneOffset.UTC))
-                    .setType(UnitLog.Type.STATUS_CHANGE)
+                    .setType(McuLog.Type.STATUS_CHANGE)
                     .setLogEntry(msg);
-            unitLogRepository.save(unitLog);
+            mcuLogRepository.save(mcuLog);
             log.atInfo().log(msg);
         }
 
@@ -300,9 +299,9 @@ public class McuService {
         return moduleDb;
     }
 
-    private Module createAndPersistNewModule(Long unitId, String moduleType, String name, Double value) {
+    private Module createAndPersistNewModule(Long mcuId, String moduleType, String name, Double value) {
         var module = new Module()
-                .setUnitId(unitId)
+                .setMcuId(mcuId)
                 .setModule(moduleType)
                 .setName(name)
                 .setValue(value)
@@ -311,12 +310,12 @@ public class McuService {
 
         var newModuleMessage = String.format("New Module was registered: %s", moduleSaved);
 
-        var unitLog = new UnitLog()
-                .setUnitId(unitId)
+        var mcuLog = new McuLog()
+                .setMcuId(mcuId)
                 .setTimeUtc(ZonedDateTime.now(ZoneOffset.UTC))
-                .setType(UnitLog.Type.STATUS_CHANGE)
+                .setType(McuLog.Type.STATUS_CHANGE)
                 .setLogEntry(newModuleMessage);
-        unitLogRepository.save(unitLog);
+        mcuLogRepository.save(mcuLog);
 
         log.atInfo().log(newModuleMessage);
 

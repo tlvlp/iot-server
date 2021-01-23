@@ -62,7 +62,7 @@ public class SchedulerService {
         //TODO
     }
 
-    public void getScheduledEventsForUnit(Long unitId) {
+    public void getScheduledEventsForMcu(Long mcuId) {
         //TODO
     }
 

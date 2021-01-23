@@ -2,7 +2,7 @@ DROP DATABASE IF EXISTS `tlvlp_iot`;
 CREATE DATABASE `tlvlp_iot`;
 USE `tlvlp_iot`;
 
-CREATE TABLE `units`
+CREATE TABLE `mcus`
 (
     `id`            bigint(20)   NOT NULL AUTO_INCREMENT,
     `project`       varchar(255) NOT NULL,
@@ -17,29 +17,29 @@ CREATE TABLE `units`
 CREATE TABLE `modules`
 (
     `id`      bigint(20) NOT NULL AUTO_INCREMENT,
-    `unit_id` bigint(20)   DEFAULT NULL,
+    `mcu_id` bigint(20)   DEFAULT NULL,
     `module`  varchar(255) DEFAULT NULL,
     `name`    varchar(255) DEFAULT NULL,
     `value`   double     NOT NULL,
     `active`  bit(1)       NOT NULL,
     PRIMARY KEY (`id`),
-    FOREIGN KEY (`unit_id`)
-        REFERENCES units (id)
+    FOREIGN KEY (`mcu_id`)
+        REFERENCES mcus (id)
         ON DELETE CASCADE
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci;
 
-CREATE TABLE `unit_logs`
+CREATE TABLE `mcu_logs`
 (
     `id`        bigint(20)   NOT NULL AUTO_INCREMENT,
-    `unit_id`   bigint(20)   NOT NULL,
+    `mcu_id`   bigint(20)   NOT NULL,
     `log_entry` varchar(255) NOT NULL,
     `time_utc`  datetime(6)  NOT NULL,
     `type`      varchar(50)  NOT NULL,
     PRIMARY KEY (`id`),
-    FOREIGN KEY (`unit_id`)
-        REFERENCES units (id)
+    FOREIGN KEY (`mcu_id`)
+        REFERENCES mcus (id)
         ON DELETE CASCADE
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
@@ -67,7 +67,7 @@ CREATE TABLE `unit_logs`
 #     `cron_schedule` varchar(255) NOT NULL,
 #     `info`          varchar(255) NOT NULL,
 #     `type`          int(11)      NOT NULL,
-#     `unit_id`       bigint(20)   NOT NULL,
+#     `mcu_id`       bigint(20)   NOT NULL,
 #     `updated_at`    datetime(6)  NOT NULL,
 #     `updated_by`    bigint(20)   NOT NULL,
 #     PRIMARY KEY (`id`)

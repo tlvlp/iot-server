@@ -1,8 +1,8 @@
+import com.tlvlp.iot.server.mcu.Mcu;
 import com.tlvlp.iot.server.mqtt.GlobalTopics;
 import com.tlvlp.iot.server.mqtt.Message;
 import com.tlvlp.iot.server.mcu.McuService;
-import com.tlvlp.iot.server.mcu.Unit;
-import com.tlvlp.iot.server.persistence.UnitRepository;
+import com.tlvlp.iot.server.persistence.McuRepository;
 import io.quarkus.test.junit.QuarkusTest;
 import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.core.eventbus.EventBus;
@@ -25,7 +25,7 @@ public class McuServiceDevelopment {
     McuService mcuService;
 
     @Inject
-    UnitRepository unitRepository;
+    McuRepository mcuRepository;
 
     @Inject
     EventBus eventBus;
@@ -57,7 +57,7 @@ public class McuServiceDevelopment {
     }
 
     @Test
-    @DisplayName("Save new unit")
+    @DisplayName("Save new mcu")
     public void unitSaveTest() {
         // given
         Message message = getNewUnitMessage();
@@ -69,13 +69,13 @@ public class McuServiceDevelopment {
         );
 
         // then
-        var repoAll = unitRepository.findAll();
+        var repoAll = mcuRepository.findAll();
 //        assertThat(repoAll.stream().count())
 //                .as("Only one item is created.")
 //                .isEqualTo(1L);
 
-        Unit unit = repoAll.firstResult();
-        assertThat(unit)
+        Mcu mcu = repoAll.firstResult();
+        assertThat(mcu)
                 .as("All fields are populated, including the Id")
                 .hasFieldOrProperty("id");
 

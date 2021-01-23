@@ -1,9 +1,9 @@
 package com.tlvlp.iot.server.controllers;
 
+import com.tlvlp.iot.server.mcu.Mcu;
 import com.tlvlp.iot.server.scheduler.SchedulerService;
 import com.tlvlp.iot.server.mcu.Module;
-import com.tlvlp.iot.server.mcu.Unit;
-import com.tlvlp.iot.server.mcu.UnitLog;
+import com.tlvlp.iot.server.mcu.McuLog;
 import com.tlvlp.iot.server.mcu.McuService;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
@@ -16,7 +16,6 @@ import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
@@ -26,37 +25,37 @@ import java.util.List;
 @Path("/mcu")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
-public class UnitController {
+public class McuController {
 
     private final McuService mcuService;
     private final SchedulerService schedulerService;
 
-    public UnitController(McuService mcuService, SchedulerService schedulerService) {
+    public McuController(McuService mcuService, SchedulerService schedulerService) {
         this.mcuService = mcuService;
         this.schedulerService = schedulerService;
     }
 
     @GET
     @Path("/all")
-    public Multi<Unit> getAllUnits() {
-        return mcuService.getAllUnits();
+    public Multi<Mcu> getAllMcus() {
+        return mcuService.getAllMcus();
     }
 
     @GET
-    public Uni<Unit> getUnitById(@QueryParam("unit_id") @NotNull @Min(1L) Long unitId) {
-        return mcuService.getUnitById(unitId);
+    public Uni<Mcu> getMcuById(@QueryParam("mcu_id") @NotNull @Min(1L) Long mcuId) {
+        return mcuService.getMcuById(mcuId);
     }
 
     @GET
     @Path("/logs")
-    public Multi<UnitLog> getUnitLogsByUnitId(@QueryParam("unit_id") @NotNull @Min(1L) Long unitId) {
-        return mcuService.getUnitLogsByUnitId(unitId);
+    public Multi<McuLog> getMcuLogsByMcuId(@QueryParam("mcu_id") @NotNull @Min(1L) Long mcuId) {
+        return mcuService.getMcuLogsByMcuId(mcuId);
     }
 
     @GET
     @Path("/modules")
-    public Multi<Module> getModulesByUnitId(@QueryParam("unit_id") @NotNull @Min(1L) Long unitId) {
-        return mcuService.getModulesByUnitId(unitId);
+    public Multi<Module> getModulesByMcuId(@QueryParam("mcu_id") @NotNull @Min(1L) Long mcuId) {
+        return mcuService.getModulesByMcuId(mcuId);
     }
 
     @POST
@@ -81,7 +80,7 @@ public class UnitController {
         //TODO
     }
 
-    public void getScheduledEventsForUnit(Long unitId) {
+    public void getScheduledEventsForMcu(Long mcuId) {
         //TODO
     }
 }

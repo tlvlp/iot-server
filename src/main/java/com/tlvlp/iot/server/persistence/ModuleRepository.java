@@ -11,16 +11,16 @@ import java.util.Set;
 @ApplicationScoped
 public class ModuleRepository implements PanacheRepositoryWithSave<Module> {
 
-    public Set<Module> getAllActiveModulesByUnitId(Long unitId) {
-        return new HashSet<>(list("unit_id = ?1 and active = ?2", unitId, true));
+    public Set<Module> getAllActiveModulesByMcuId(Long mcuId) {
+        return new HashSet<>(list("mcu_id = ?1 and active = ?2", mcuId, true));
     }
 
-    public Optional<Module> findByUnitIdAndModuleAndName(Long unitId, String module, String name) {
-        return find("unit_id = ?1 and module = ?2 and name = ?3", unitId, module, name)
+    public Optional<Module> findByMcuIdAndModuleAndName(Long mcuId, String module, String name) {
+        return find("mcu_id = ?1 and module = ?2 and name = ?3", mcuId, module, name)
                 .singleResultOptional();
     }
 
-    public List<Module> findAllByUnitId(Long unitId) {
-        return list("unit_id", unitId);
+    public List<Module> findAllByMcuId(Long mcuId) {
+        return list("mcu_id", mcuId);
     }
 }

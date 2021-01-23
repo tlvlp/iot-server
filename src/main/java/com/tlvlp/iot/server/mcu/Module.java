@@ -38,8 +38,8 @@ public class Module implements Serializable {
 
     @NotNull
     @Min(1L)
-    @Column(name = "unit_id", nullable = false)
-    private Long unitId;
+    @Column(name = "mcu_id", nullable = false)
+    private Long mcuId;
 
     @NotBlank
     private String module;

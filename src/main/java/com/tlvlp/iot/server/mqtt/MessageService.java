@@ -97,7 +97,7 @@ public class MessageService {
     }
 
     public void sendGlobalStatusRequest() {
-        log.atInfo().log("Sending a global status request for all available units to check in.");
+        log.atInfo().log("Sending a global status request for all available MCUs to check in.");
         sendMessage(GlobalTopics.GLOBAL_STATUS_REQUEST.topic(), Buffer.buffer());
     }
 
