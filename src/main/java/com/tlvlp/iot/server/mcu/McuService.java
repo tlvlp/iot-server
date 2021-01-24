@@ -11,8 +11,7 @@ import com.tlvlp.iot.server.persistence.McuLogRepository;
 import com.tlvlp.iot.server.persistence.McuRepository;
 import io.quarkus.runtime.Startup;
 import io.quarkus.vertx.ConsumeEvent;
-import io.smallrye.mutiny.Multi;
-import io.smallrye.mutiny.Uni;
+import io.smallrye.common.annotation.Blocking;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
@@ -56,37 +55,36 @@ public class McuService {
         this.mcuLogRepository = mcuLogRepository;
     }
 
-    public Multi<Mcu> getAllMcus() {
-        return Multi.createFrom().items(mcuRepository.streamAll())
-                .onFailure().invoke(e -> log.atSevere().log("Unable to get all mcus: %s", e.getMessage()));
+    @Blocking
+    public List<Mcu> getAllMcus() {
+        return mcuRepository.listAll();
     }
 
-    public Uni<Mcu> getMcuById(Long mcuId) {
-        return Uni.createFrom().item(mcuRepository.findById(mcuId))
-                .onFailure().invoke(e -> log.atSevere().log("Unable to get mcu by id(%s): %s", mcuId, e.getMessage()));
+    @Blocking
+    public Mcu getMcuById(Long mcuId) {
+        return mcuRepository.findById(mcuId);
     }
 
-    public Multi<McuLog> getMcuLogsByMcuId(Long mcuId) {
-        return Multi.createFrom().items(mcuLogRepository.findAllByMcuId(mcuId).stream())
-                .onFailure().invoke(e -> log.atSevere().log("Unable to get mcu logs by mcu id(%s): %s", mcuId, e.getMessage()));
+    @Blocking
+    public List<McuLog> getMcuLogsByMcuId(Long mcuId) {
+        return mcuLogRepository.findAllByMcuId(mcuId);
     }
 
-    public Multi<Module> getModulesByMcuId(Long mcuId) {
-        return Multi.createFrom().items(moduleRepository.findAllByMcuId(mcuId).stream())
-                .onFailure().invoke(e -> log.atSevere().log("Unable to get modules by mcu id(%s): %s", mcuId, e.getMessage()));
+    @Blocking
+    public List<Module> getModulesByMcuId(Long mcuId) {
+        return moduleRepository.findAllByMcuId(mcuId);
     }
 
     @ConsumeEvent(value = "mcu_control", blocking = true)
-    public Uni<Void> sendScheduledControlMessages(String moduleControlsJson) {
+    public void sendScheduledControlMessages(String moduleControlsJson) {
         try {
             List<Module> moduleControlsAll = jsonMapper.readValue(moduleControlsJson, new TypeReference<>() {});
             sendControlMessages(moduleControlsAll);
         } catch (JsonProcessingException e) {
-            var err = String.format("Unable to send module control messages. Cannot parse message contents: %s", moduleControlsJson);
-            log.atSevere().log(err);
+            log.atSevere().log(
+                    String.format("Unable to send module control messages. Cannot parse message contents: %s", moduleControlsJson));
 
         }
-        return Uni.createFrom().voidItem();
     }
 
     /**
@@ -94,22 +92,22 @@ public class McuService {
      * Note: If a module has more than one instance in the list, then the execution order is not guaranteed.
      *
      * @param moduleControlsAll a list of modified {@link Module}s that will be converted and sent out to control the MCUs.
-     * @return void.
      */
-    public Uni<Void> sendControlMessages(List<Module> moduleControlsAll) {
+    @Blocking
+    public void sendControlMessages(List<Module> moduleControlsAll) {
         try {
             Map<Long, List<ModuleDTO>> modulesByMcuIds = moduleControlsAll.stream()
                     .collect(groupingBy(Module::getMcuId, mapping(this::convertModuleToModuleDTO, toList())));
 
-            modulesByMcuIds.forEach((mcuId, moduleControls) -> {
+            modulesByMcuIds.forEach((mcuId, moduleControlDTOs) -> {
                 Mcu mcu = mcuRepository.findById(mcuId);
                 if (mcu == null) {
                     log.atSevere().log("Unable to send module control messages to non-existent mcu Id:%s, modules:%s",
-                            mcuId, moduleControls);
+                            mcuId, moduleControlDTOs);
                     return;
                 }
 
-                Buffer body = Json.encodeToBuffer(moduleControls);
+                Buffer body = Json.encodeToBuffer(moduleControlDTOs);
                 messageService.sendMessage(getControlTopic(mcu), body);
 
                 var mcuLog = new McuLog()
@@ -119,19 +117,16 @@ public class McuService {
                         .setLogEntry(Json.encodePrettily(moduleControlsAll));
                 mcuLogRepository.save(mcuLog);
             });
-
-            return Uni.createFrom().voidItem();
         } catch (Exception e) {
-            return Uni.createFrom().failure(new McuException(
-                    String.format("Unable to send mcu control message! Module controls:%s %n%s",
-                            moduleControlsAll, e.getMessage())));
+            throw new McuException(String.format("Unable to send mcu control message! Module controls:%s %n%s",
+                            moduleControlsAll, e.getMessage()));
         }
 
     }
 
     @ConsumeEvent(value = "mqtt_ingress", blocking = true)
     @Transactional
-    public Uni<Void> handleIngressMessage(Message message) {
+    public void handleIngressMessage(Message message) {
         try {
             log.atFine().log("Message event received: %s", message);
             var body = message.payload();
@@ -145,10 +140,9 @@ public class McuService {
             } else {
                 log.atSevere().log("Unrecognized topic name: %s", topic);
             }
-            return Uni.createFrom().voidItem();
         } catch (Exception e) {
             log.atSevere().log("Unable to handle ingress message: %s", e.getMessage());
-            return Uni.createFrom().failure(e);
+            throw e;
         }
     }
 

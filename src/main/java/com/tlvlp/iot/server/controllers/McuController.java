@@ -5,8 +5,6 @@ import com.tlvlp.iot.server.scheduler.SchedulerService;
 import com.tlvlp.iot.server.mcu.Module;
 import com.tlvlp.iot.server.mcu.McuLog;
 import com.tlvlp.iot.server.mcu.McuService;
-import io.smallrye.mutiny.Multi;
-import io.smallrye.mutiny.Uni;
 import lombok.extern.flogger.Flogger;
 
 import javax.validation.constraints.Min;
@@ -37,31 +35,31 @@ public class McuController {
 
     @GET
     @Path("/all")
-    public Multi<Mcu> getAllMcus() {
+    public List<Mcu> getAllMcus() {
         return mcuService.getAllMcus();
     }
 
     @GET
-    public Uni<Mcu> getMcuById(@QueryParam("mcu_id") @NotNull @Min(1L) Long mcuId) {
+    public Mcu getMcuById(@QueryParam("mcu_id") @NotNull @Min(1L) Long mcuId) {
         return mcuService.getMcuById(mcuId);
     }
 
     @GET
     @Path("/logs")
-    public Multi<McuLog> getMcuLogsByMcuId(@QueryParam("mcu_id") @NotNull @Min(1L) Long mcuId) {
+    public List<McuLog> getMcuLogsByMcuId(@QueryParam("mcu_id") @NotNull @Min(1L) Long mcuId) {
         return mcuService.getMcuLogsByMcuId(mcuId);
     }
 
     @GET
     @Path("/modules")
-    public Multi<Module> getModulesByMcuId(@QueryParam("mcu_id") @NotNull @Min(1L) Long mcuId) {
+    public List<Module> getModulesByMcuId(@QueryParam("mcu_id") @NotNull @Min(1L) Long mcuId) {
         return mcuService.getModulesByMcuId(mcuId);
     }
 
     @POST
     @Path("/control")
-    public Uni<Void> sendControlMessages(@NotEmpty List<Module> moduleControls) {
-        return mcuService.sendControlMessages(moduleControls);
+    public void sendControlMessages(@NotEmpty List<Module> moduleControls) {
+        mcuService.sendControlMessages(moduleControls);
     }
 
     public void addScheduledEvent(String schedulerGroup, String schedulerName, String cron, String eventAddress, String eventMessage) {
