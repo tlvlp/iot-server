@@ -5,8 +5,10 @@ import com.tlvlp.iot.server.scheduler.SchedulerService;
 import com.tlvlp.iot.server.mcu.Module;
 import com.tlvlp.iot.server.mcu.McuLog;
 import com.tlvlp.iot.server.mcu.McuService;
+import io.smallrye.common.annotation.Blocking;
 import lombok.extern.flogger.Flogger;
 
+import javax.transaction.Transactional;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
@@ -33,29 +35,40 @@ public class McuController {
         this.schedulerService = schedulerService;
     }
 
+    @Blocking
+    @Transactional
     @GET
     @Path("/all")
     public List<Mcu> getAllMcus() {
         return mcuService.getAllMcus();
     }
 
+    @Blocking
+    @Transactional
     @GET
     public Mcu getMcuById(@QueryParam("mcu_id") @NotNull @Min(1L) Long mcuId) {
         return mcuService.getMcuById(mcuId);
     }
 
+
+    @Blocking
+    @Transactional
     @GET
     @Path("/logs")
     public List<McuLog> getMcuLogsByMcuId(@QueryParam("mcu_id") @NotNull @Min(1L) Long mcuId) {
         return mcuService.getMcuLogsByMcuId(mcuId);
     }
 
+    @Blocking
+    @Transactional
     @GET
     @Path("/modules")
     public List<Module> getModulesByMcuId(@QueryParam("mcu_id") @NotNull @Min(1L) Long mcuId) {
         return mcuService.getModulesByMcuId(mcuId);
     }
 
+    @Blocking
+    @Transactional
     @POST
     @Path("/control")
     public void sendControlMessages(@NotEmpty List<Module> moduleControls) {

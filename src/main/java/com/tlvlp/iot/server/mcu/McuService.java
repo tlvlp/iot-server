@@ -55,22 +55,18 @@ public class McuService {
         this.mcuLogRepository = mcuLogRepository;
     }
 
-    @Blocking
     public List<Mcu> getAllMcus() {
         return mcuRepository.listAll();
     }
 
-    @Blocking
     public Mcu getMcuById(Long mcuId) {
         return mcuRepository.findById(mcuId);
     }
 
-    @Blocking
     public List<McuLog> getMcuLogsByMcuId(Long mcuId) {
         return mcuLogRepository.findAllByMcuId(mcuId);
     }
 
-    @Blocking
     public List<Module> getModulesByMcuId(Long mcuId) {
         return moduleRepository.findAllByMcuId(mcuId);
     }
@@ -93,7 +89,6 @@ public class McuService {
      *
      * @param moduleControlsAll a list of modified {@link Module}s that will be converted and sent out to control the MCUs.
      */
-    @Blocking
     public void sendControlMessages(List<Module> moduleControlsAll) {
         try {
             Map<Long, List<ModuleDTO>> modulesByMcuIds = moduleControlsAll.stream()
