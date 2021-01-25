@@ -261,10 +261,11 @@ public class McuService {
     private Module updateOrCreateModule(Long mcuId, ModuleDTO dto) {
         var moduleType = dto.getModule();
         var name = dto.getName();
+        var action = dto.getAction();
         var value = dto.getValue();
 
         var moduleDb = moduleRepository.findByMcuIdAndModuleAndName(mcuId, moduleType, name)
-                .orElseGet(() -> createAndPersistNewModule(mcuId, moduleType, name, value));
+                .orElseGet(() -> createAndPersistNewModule(mcuId, moduleType, name, action, value));
 
         // Reactivation
         if (!moduleDb.getActive().equals(true)) {
@@ -288,11 +289,12 @@ public class McuService {
         return moduleDb;
     }
 
-    private Module createAndPersistNewModule(Long mcuId, String moduleType, String name, Double value) {
+    private Module createAndPersistNewModule(Long mcuId, String moduleType, String name, String action, Double value) {
         var module = new Module()
                 .setMcuId(mcuId)
                 .setModule(moduleType)
                 .setName(name)
+                .setAction(action)
                 .setValue(value)
                 .setActive(true);
         var moduleSaved = moduleRepository.saveAndFlush(module);
@@ -315,6 +317,7 @@ public class McuService {
         return new ModuleDTO()
                 .setModule(module.getModule())
                 .setName(module.getName())
+                .setAction(module.getAction())
                 .setValue(module.getValue());
     }
 

@@ -23,6 +23,9 @@ public class ModuleDTO implements Serializable {
     @NotBlank
     public String name;
 
+    @NotBlank
+    public String action;
+
     @NotNull
     public Double value;
 

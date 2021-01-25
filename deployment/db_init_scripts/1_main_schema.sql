@@ -17,9 +17,10 @@ CREATE TABLE `mcus`
 CREATE TABLE `modules`
 (
     `id`      bigint(20) NOT NULL AUTO_INCREMENT,
-    `mcu_id` bigint(20)   DEFAULT NULL,
+    `mcu_id`  bigint(20)   DEFAULT NULL,
     `module`  varchar(255) DEFAULT NULL,
     `name`    varchar(255) DEFAULT NULL,
+    `action`  varchar(255) DEFAULT NULL,
     `value`   double     NOT NULL,
     `active`  bit(1)       NOT NULL,
     PRIMARY KEY (`id`),

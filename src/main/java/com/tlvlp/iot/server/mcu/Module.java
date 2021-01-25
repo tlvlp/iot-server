@@ -9,6 +9,8 @@ import lombok.experimental.Accessors;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
@@ -43,6 +45,9 @@ public class Module implements Serializable {
 
     @NotBlank
     private String module;
+
+    @NotBlank
+    private String action;
 
     @NotBlank
     private String name;
