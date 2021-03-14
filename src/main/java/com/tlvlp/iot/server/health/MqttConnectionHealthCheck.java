@@ -18,7 +18,6 @@ public class MqttConnectionHealthCheck implements HealthCheck {
         this.messageService = messageService;
     }
 
-
     @Override
     public HealthCheckResponse call() {
         HealthCheckResponseBuilder responseBuilder = HealthCheckResponse.named("Mqtt connection");

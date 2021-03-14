@@ -1,6 +1,7 @@
 package com.tlvlp.iot.server.mcu;
 
 
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -24,6 +25,7 @@ import java.time.ZonedDateTime;
 /**
  * A log entry related to a MCU.
  */
+@RegisterForReflection
 @NoArgsConstructor
 @Getter
 @Setter

@@ -3,6 +3,7 @@ package com.tlvlp.iot.server.mqtt;
 
 import io.netty.handler.codec.mqtt.MqttQoS;
 import io.quarkus.runtime.Startup;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.mqtt.MqttClient;
@@ -13,6 +14,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Flogger
@@ -47,7 +49,7 @@ public class MessageService {
         this.isServiceDisabled = isServiceDisabled;
 
         log.atInfo().log("Creating MQTT client");
-        var clientOptions = new MqttClientOptions()
+        MqttClientOptions clientOptions = new MqttClientOptions()
                 .setClientId("tlvlp-iot-server")
                 .setUsername(brokerUser.strip())
                 .setPassword(brokerPassword.strip())
@@ -74,14 +76,14 @@ public class MessageService {
     }
 
     private void subscribeToGlobalTopics() {
-        var topicQosMap = GlobalTopics.getIngressTopicStream()
+        Map<String, Integer> topicQosMap = GlobalTopics.getIngressTopicStream()
                 .collect(Collectors.toMap(topic -> topic, na -> brokerQoS));
         log.atInfo().log("Subscribing to global ingress topics: %s", topicQosMap.keySet());
 
         mqttClient
                 .exceptionHandler(err -> log.atSevere().withCause(err).log("Mqtt client exception."))
                 .publishHandler(mqttMessage -> {
-                    var message = new Message()
+                    Message message = new Message()
                             .topic(mqttMessage.topicName())
                             .payload(mqttMessage.payload().toJsonObject());
                     log.atInfo().log("Message received: %s", message);

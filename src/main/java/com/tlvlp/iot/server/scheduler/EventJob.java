@@ -25,7 +25,7 @@ public class EventJob implements Job {
             Object message = jobExecutionContext.get("eventMessage");
             eventBus.sendAndForget(address, message);
         } catch (Exception e) {
-            var err = String.format("Unable to execute scheduled job: %s", e.getMessage());
+            String err = String.format("Unable to execute scheduled job: %s", e.getMessage());
             log.atSevere().log(err);
             throw new JobExecutionException(err, false);
         }

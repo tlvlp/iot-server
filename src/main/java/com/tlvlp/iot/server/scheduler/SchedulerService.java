@@ -43,7 +43,7 @@ public class SchedulerService {
 
             scheduler.scheduleJob(job, trigger);
         } catch (Exception e) {
-            var err = "Unable to add scheduled event: " + e.getMessage();
+            String err = "Unable to add scheduled event: " + e.getMessage();
             log.atSevere().log(err);
             throw new ScheduledEventException(err);
         }

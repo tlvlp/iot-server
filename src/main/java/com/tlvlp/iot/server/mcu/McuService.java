@@ -25,6 +25,7 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.*;
@@ -105,7 +106,7 @@ public class McuService {
                 Buffer body = Json.encodeToBuffer(moduleControlDTOs);
                 messageService.sendMessage(getControlTopic(mcu), body);
 
-                var mcuLog = new McuLog()
+                McuLog mcuLog = new McuLog()
                         .setMcuId(mcu.getId())
                         .setTimeUtc(ZonedDateTime.now(ZoneOffset.UTC))
                         .setType(McuLog.Type.OUTGOING_CONTROL)
@@ -124,8 +125,8 @@ public class McuService {
     public void handleIngressMessage(Message message) {
         try {
             log.atFine().log("Message event received: %s", message);
-            var body = message.payload();
-            var topic = message.topic();
+            JsonObject body = message.payload();
+            String topic = message.topic();
             if (topic.equals(GlobalTopics.GLOBAL_STATUS.topic())) {
                 handleStatusMessage(body);
             } else if (topic.equals(GlobalTopics.GLOBAL_INACTIVE.topic())) {
@@ -142,17 +143,17 @@ public class McuService {
     }
 
     private void handleErrorMessage(JsonObject body) {
-        var timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
-        var mcu = getOrCreateMcuFromBody(body)
+        ZonedDateTime timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
+        Mcu mcu = getOrCreateMcuFromBody(body)
                 .setActive(true)
                 .setLastSeenUtc(timeUtc);
 
-        var error = Optional.ofNullable(body.getString("error"))
+        String error = Optional.ofNullable(body.getString("error"))
                 .orElseGet(() -> {
                     log.atSevere().log("Missing error message for mcu: %s", mcu);
                     return "Error message is missing!";
                 });
-        var mcuLog = new McuLog()
+        McuLog mcuLog = new McuLog()
                 .setMcuId(mcu.getId())
                 .setTimeUtc(timeUtc)
                 .setType(McuLog.Type.INCOMING_ERROR)
@@ -165,16 +166,16 @@ public class McuService {
     }
 
     private void handleInactiveMessage(JsonObject body) {
-        var timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
-        var mcu = getOrCreateMcuFromBody(body)
+        ZonedDateTime timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
+        Mcu mcu = getOrCreateMcuFromBody(body)
                 .setActive(false);
         if (mcu.getLastSeenUtc() == null) {
             // Keep last seen data if present.
             mcu.setLastSeenUtc(ZonedDateTime.now(ZoneOffset.UTC));
         }
-        var mcuSaved = mcuRepository.saveAndFlush(mcu);
+        Mcu mcuSaved = mcuRepository.saveAndFlush(mcu);
 
-        var mcuLog = new McuLog()
+        McuLog mcuLog = new McuLog()
                 .setMcuId(mcuSaved.getId())
                 .setTimeUtc(timeUtc)
                 .setType(McuLog.Type.INCOMING_INACTIVE)
@@ -185,18 +186,18 @@ public class McuService {
     }
 
     private void handleStatusMessage(JsonObject body) {
-        var timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
-        var mcu = getOrCreateMcuFromBody(body)
+        ZonedDateTime timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
+        Mcu mcu = getOrCreateMcuFromBody(body)
                 .setActive(true)
                 .setLastSeenUtc(timeUtc);
-        var savedMcu = mcuRepository.saveAndFlush(mcu);
+        Mcu savedMcu = mcuRepository.saveAndFlush(mcu);
         updateOrCreateModulesFromBody(savedMcu, body);
     }
 
     private Mcu getOrCreateMcuFromBody(JsonObject body) {
-        var idJson = body.getJsonObject("id");
-        var project = idJson.getString("project");
-        var name = idJson.getString("mcuName");
+        JsonObject idJson = body.getJsonObject("id");
+        String project = idJson.getString("project");
+        String name = idJson.getString("mcuName");
 
         return mcuRepository
                 .findByProjectAndName(project, name)
@@ -204,16 +205,16 @@ public class McuService {
     }
 
     private Mcu createAndPersistNewMcu(String project, String name) {
-        var timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
+        ZonedDateTime timeUtc = ZonedDateTime.now(ZoneOffset.UTC);
 
-        var mcu = new Mcu()
+        Mcu mcu = new Mcu()
                 .setProject(project)
                 .setName(name)
                 .setActive(true)
                 .setLastSeenUtc(timeUtc);
-        var mcuSaved = mcuRepository.saveAndFlush(mcu);
+        Mcu mcuSaved = mcuRepository.saveAndFlush(mcu);
 
-        var mcuLog = new McuLog()
+        McuLog mcuLog = new McuLog()
                 .setMcuId(mcuSaved.getId())
                 .setTimeUtc(timeUtc)
                 .setType(McuLog.Type.STATUS_CHANGE)
@@ -231,7 +232,7 @@ public class McuService {
 
     private void updateOrCreateModulesFromBody(Mcu mcu, JsonObject body) {
         Long mcuId = mcu.getId();
-        var newModules = body.getJsonArray("modules")
+        Set<Module> newModules = body.getJsonArray("modules")
                 .stream()
                 .map(moduleDtoObj -> Json.decodeValue(String.valueOf(moduleDtoObj), ModuleDTO.class))
                 .map(moduleDTO -> updateOrCreateModule(mcuId, moduleDTO))
@@ -245,11 +246,11 @@ public class McuService {
                     module.setActive(false);
                     moduleRepository.save(module);
 
-                    var updateMessage = String.format("Module was inactivated: %s", module);
+                    String updateMessage = String.format("Module was inactivated: %s", module);
 
                     log.atInfo().log(updateMessage);
 
-                    var mcuLog = new McuLog()
+                    McuLog mcuLog = new McuLog()
                             .setMcuId(mcuId)
                             .setTimeUtc(ZonedDateTime.now(ZoneOffset.UTC))
                             .setType(McuLog.Type.STATUS_CHANGE)
@@ -259,19 +260,19 @@ public class McuService {
     }
 
     private Module updateOrCreateModule(Long mcuId, ModuleDTO dto) {
-        var moduleType = dto.getModule();
-        var name = dto.getName();
-        var action = dto.getAction();
-        var value = dto.getValue();
+        String moduleType = dto.getModule();
+        String name = dto.getName();
+        String action = dto.getAction();
+        Double value = dto.getValue();
 
-        var moduleDb = moduleRepository.findByMcuIdAndModuleAndName(mcuId, moduleType, name)
+        Module moduleDb = moduleRepository.findByMcuIdAndModuleAndName(mcuId, moduleType, name)
                 .orElseGet(() -> createAndPersistNewModule(mcuId, moduleType, name, action, value));
 
         // Reactivation
         if (!moduleDb.getActive().equals(true)) {
             moduleDb.setActive(true);
-            var msg = String.format("Module was reactivated: %s", moduleDb);
-            var mcuLog = new McuLog()
+            String msg = String.format("Module was reactivated: %s", moduleDb);
+            McuLog mcuLog = new McuLog()
                     .setMcuId(mcuId)
                     .setTimeUtc(ZonedDateTime.now(ZoneOffset.UTC))
                     .setType(McuLog.Type.STATUS_CHANGE)
@@ -290,18 +291,18 @@ public class McuService {
     }
 
     private Module createAndPersistNewModule(Long mcuId, String moduleType, String name, String action, Double value) {
-        var module = new Module()
+        Module module = new Module()
                 .setMcuId(mcuId)
                 .setModule(moduleType)
                 .setName(name)
                 .setAction(action)
                 .setValue(value)
                 .setActive(true);
-        var moduleSaved = moduleRepository.saveAndFlush(module);
+        Module moduleSaved = moduleRepository.saveAndFlush(module);
 
-        var newModuleMessage = String.format("New Module was registered: %s", moduleSaved);
+        String newModuleMessage = String.format("New Module was registered: %s", moduleSaved);
 
-        var mcuLog = new McuLog()
+        McuLog mcuLog = new McuLog()
                 .setMcuId(mcuId)
                 .setTimeUtc(ZonedDateTime.now(ZoneOffset.UTC))
                 .setType(McuLog.Type.STATUS_CHANGE)
